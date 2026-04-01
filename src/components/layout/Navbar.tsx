@@ -49,12 +49,14 @@ export const Navbar = () => {
     ? [
         { name: "Home", href: "/" },
         { name: "AI Coach", href: "/coach" },
+        { name: "Anatomy", href: "/anatomy" },
         { name: "Profile", href: "/profile" },
       ]
     : [
         { name: "Home", href: "/" },
         { name: "Features", href: "/#features" },
         { name: "AI Coach", href: "/coach" },
+        { name: "Anatomy", href: "/anatomy" },
         { name: "Pricing", href: "/#pricing" },
       ];
 

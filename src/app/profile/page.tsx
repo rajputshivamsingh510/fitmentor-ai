@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState, useCallback } from 'react';
 import { useUserStore } from '@/store/userStore';
 import {
@@ -129,6 +129,7 @@ export default function ProfilePage() {
   const [authLoading, setAuthLoading] = useState(true);
   const [clearing, setClearing] = useState(false);
   const [clearingDiet, setClearingDiet] = useState(false);
+  const [showDietConfirm, setShowDietConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'workout' | 'diet' | 'water'>('overview');
 
   // Water tracking
@@ -275,8 +276,12 @@ export default function ProfilePage() {
   };
 
   const handleClearDietPlan = async () => {
-    if (!confirm('Delete your current diet plan? You can generate a new one from the AI coach.')) return;
+    setShowDietConfirm(true);
+  };
+
+  const confirmClearDietPlan = async () => {
     setClearingDiet(true);
+    setShowDietConfirm(false);
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
@@ -909,6 +914,52 @@ export default function ProfilePage() {
           </>
         )}
       </div>
+
+      <AnimatePresence>
+        {showDietConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 10, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 10, opacity: 0 }}
+              className="w-full max-w-md rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.55)] p-6 space-y-4"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-white">Delete diet plan?</h3>
+                  <p className="text-sm text-slate-300 mt-1">
+                    This will remove your current meals from the profile. You can always generate a new plan with the AI coach.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={() => setShowDietConfirm(false)}
+                  disabled={clearingDiet}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-200 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50"
+                >
+                  Keep plan
+                </button>
+                <button
+                  onClick={confirmClearDietPlan}
+                  disabled={clearingDiet}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-500 hover:bg-red-400 text-slate-950 shadow-lg shadow-red-500/30 transition-colors disabled:opacity-50"
+                >
+                  {clearingDiet ? 'Deleting…' : 'Delete now'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

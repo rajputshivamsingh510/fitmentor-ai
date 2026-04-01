@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Send, CheckCircle, Calendar, Utensils, Activity, ArrowRight,
   Dumbbell, Apple, Flame, Brain, Zap, HeartPulse, AlertCircle,
-  Clock, Edit3, Plus, ChevronDown, ChevronUp,
+  Clock, Edit3, Plus, ChevronDown, ChevronUp, Ruler, Weight,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useUserStore } from "@/store/userStore";
@@ -30,6 +30,7 @@ interface Message {
   isError?: boolean;
   options?: string[];
   plan?: { planType: "workout" | "diet"; data: PlanPayload; saved: boolean };
+  showHeightWeightInput?: boolean;
 }
 
 const QUICK_PROMPTS = [
@@ -273,6 +274,9 @@ function OptionButtons({
 export default function CoachPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [weightInput, setWeightInput] = useState("");
+  const [heightInput, setHeightInput] = useState("");
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [rateLimitCountdown, setRateLimitCountdown] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -344,7 +348,7 @@ export default function CoachPage() {
     setIsLoading(true);
 
     const assistantId = (Date.now() + 1).toString();
-    setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "", isStreaming: true }]);
+    setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "", isStreaming: true, showHeightWeightInput: false }]);
 
     try {
       const history = updatedMessages
@@ -399,17 +403,17 @@ export default function CoachPage() {
             const parsed = JSON.parse(rawData);
 
             if (parsed.type === "delta") {
-              accumulatedText += parsed.content;
+              accumulatedText += parsed.content ?? "";
               setMessages((prev) =>
                 prev.map((m) => m.id === assistantId
-                  ? { ...m, content: accumulatedText, isStreaming: true, options: parsed.options ?? [] }
+                  ? { ...m, content: accumulatedText, isStreaming: true, options: parsed.options ?? [], showHeightWeightInput: Boolean(parsed.showHeightWeightInput) }
                   : m)
               );
             } else if (parsed.type === "plan") {
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantId
-                    ? { ...m, content: accumulatedText, isStreaming: false, options: [], plan: { planType: parsed.planType, data: parsed.data, saved: false } }
+                    ? { ...m, content: accumulatedText, isStreaming: false, options: [], showHeightWeightInput: false, plan: { planType: parsed.planType, data: parsed.data, saved: false } }
                     : m
                 )
               );
@@ -444,9 +448,24 @@ export default function CoachPage() {
 
   const isInputDisabled = isLoading || rateLimitCountdown !== null;
 
+  const sendBodyStats = () => {
+    if (isInputDisabled) return;
+    if (!weightInput.trim() || !heightInput.trim()) {
+      setStatsError("Please enter both height and weight.");
+      return;
+    }
+    setStatsError(null);
+    const payload = `Weight: ${weightInput.trim()} kg\nHeight: ${heightInput.trim()} cm`;
+    sendMessage(payload);
+    setWeightInput("");
+    setHeightInput("");
+  };
+
   // Check if the last assistant message has options (to dim the input)
   const lastMsg = messages[messages.length - 1];
   const hasActiveOptions = lastMsg?.role === "assistant" && !lastMsg.isStreaming && (lastMsg.options?.length ?? 0) > 0;
+  const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+  const needsBodyStats = Boolean(lastAssistant?.showHeightWeightInput && lastAssistant.id === lastMsg?.id);
 
   return (
     <main className="relative min-h-screen bg-transparent overflow-hidden flex flex-col font-sans">
@@ -548,6 +567,85 @@ export default function CoachPage() {
                 </motion.div>
               );
             })}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {needsBodyStats && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="glass-panel rounded-2xl p-4 border border-cyan-500/30 bg-cyan-500/5 shadow-[0_10px_40px_rgba(6,182,212,0.25)]"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center">
+                    <Activity className="w-5 h-5 text-cyan-300" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-cyan-100 font-semibold">Body stats requested</p>
+                    <p className="text-xs text-cyan-200/80">Enter your current weight and height to personalise the diet plan.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5">
+                    <Weight className="w-5 h-5 text-cyan-300" />
+                    <div className="flex-1">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400 font-semibold">Weight</p>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        inputMode="decimal"
+                        value={weightInput}
+                        onChange={(e) => { setWeightInput(e.target.value); if (statsError) setStatsError(null); }}
+                        className="w-full bg-transparent text-white text-sm font-semibold focus:outline-none placeholder:text-slate-600"
+                        placeholder="e.g. 72.5 kg"
+                      />
+                    </div>
+                    <span className="text-xs text-slate-400 font-semibold">kg</span>
+                  </div>
+                  <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5">
+                    <Ruler className="w-5 h-5 text-cyan-300" />
+                    <div className="flex-1">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400 font-semibold">Height</p>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        inputMode="decimal"
+                        value={heightInput}
+                        onChange={(e) => { setHeightInput(e.target.value); if (statsError) setStatsError(null); }}
+                        className="w-full bg-transparent text-white text-sm font-semibold focus:outline-none placeholder:text-slate-600"
+                        placeholder="e.g. 170 cm"
+                      />
+                    </div>
+                    <span className="text-xs text-slate-400 font-semibold">cm</span>
+                  </div>
+                </div>
+                {statsError && <p className="text-xs text-amber-300 mt-2">{statsError}</p>}
+                <div className="flex items-center justify-end gap-2 mt-3">
+                  <button
+                    onClick={() => { setWeightInput(""); setHeightInput(""); setStatsError(null); }}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-200 bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+                    disabled={isInputDisabled}
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={sendBodyStats}
+                    disabled={isInputDisabled}
+                    className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all ${
+                      isInputDisabled
+                        ? "bg-slate-800/60 text-slate-500 cursor-not-allowed"
+                        : "bg-cyan-500 text-slate-950 hover:bg-cyan-400 hover:shadow-[0_0_16px_rgba(6,182,212,0.4)]"
+                    }`}
+                  >
+                    Send stats
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
 
           {isLoading && messages[messages.length - 1]?.content === "" && !messages[messages.length - 1]?.plan && (

@@ -8,7 +8,6 @@ import { PricingSection } from "@/components/home/PricingSection";
 import { ParticleBackground } from "@/components/animations/ParticleBackground";
 
 // Interactive Coaching Section (Muscle Map & AI Tool)
-import { InteractiveCoachingSection } from "@/components/home/InteractiveCoachingSection";
 
 export default function Home() {
   return (
@@ -18,9 +17,6 @@ export default function Home() {
       
       <HeroSection />
       <FeaturesSection />
-      
-      {/* Container for Muscle Map and AI interactive elements */}
-      <InteractiveCoachingSection />
       
       <ProgramsSection />
       <TestimonialsSection />
