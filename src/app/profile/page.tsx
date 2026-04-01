@@ -1,9 +1,13 @@
 "use client";
 
 import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useUserStore } from '@/store/userStore';
-import { Calendar, Utensils, Award, Flame, Zap, Trash2, MessageCircle, User, Loader2 } from 'lucide-react';
+import {
+  Calendar, Utensils, Award, Flame, Zap, Trash2, MessageCircle, User,
+  Loader2, CheckCircle2, XCircle, MinusCircle, Droplets, Target,
+  TrendingUp, ChevronLeft, ChevronRight, Dumbbell, BarChart3, Plus, Minus
+} from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import { Navbar } from '@/components/layout/Navbar';
 import { ParticleBackground } from '@/components/animations/ParticleBackground';
@@ -11,11 +15,50 @@ import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
+type WorkoutStatus = 'completed' | 'skipped' | 'missed' | null;
+
+interface WaterLog {
+  date: string; // yyyy-MM-dd
+  glasses: number;
+}
+
+interface WorkoutStatusLog {
+  [dateKey: string]: WorkoutStatus;
+}
+
+const WATER_GOAL_KEY = 'fitmentor_water_goal';
+const WATER_LOG_KEY = 'fitmentor_water_log';
+const WORKOUT_STATUS_KEY = 'fitmentor_workout_status';
+
 export default function ProfilePage() {
   const { workoutPlan, dietPlan, loadFromSupabase, clearPlans, _supabaseLoaded } = useUserStore();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [clearing, setClearing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'workout' | 'diet' | 'water'>('overview');
+
+  // Water tracking
+  const [waterGoal, setWaterGoal] = useState(8);
+  const [waterLog, setWaterLog] = useState<WaterLog[]>([]);
+  const [editingWaterGoal, setEditingWaterGoal] = useState(false);
+  const [tempGoal, setTempGoal] = useState(8);
+
+  // Workout status tracking
+  const [workoutStatuses, setWorkoutStatuses] = useState<WorkoutStatusLog>({});
+
+  const todayKey = format(new Date(), 'yyyy-MM-dd');
+
+  const todayWater = waterLog.find(l => l.date === todayKey)?.glasses ?? 0;
+
+  // Load from localStorage
+  useEffect(() => {
+    const savedGoal = localStorage.getItem(WATER_GOAL_KEY);
+    if (savedGoal) { setWaterGoal(Number(savedGoal)); setTempGoal(Number(savedGoal)); }
+    const savedLog = localStorage.getItem(WATER_LOG_KEY);
+    if (savedLog) setWaterLog(JSON.parse(savedLog));
+    const savedStatuses = localStorage.getItem(WORKOUT_STATUS_KEY);
+    if (savedStatuses) setWorkoutStatuses(JSON.parse(savedStatuses));
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -23,7 +66,6 @@ export default function ProfilePage() {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       setAuthLoading(false);
-      // Always fetch fresh from Supabase on profile mount
       await loadFromSupabase();
     };
     init();
@@ -32,33 +74,70 @@ export default function ProfilePage() {
 
   const isLoading = authLoading || !_supabaseLoaded;
 
-  // Calendar logic
+  // Water helpers
+  const updateWater = useCallback((delta: number) => {
+    setWaterLog(prev => {
+      const existing = prev.find(l => l.date === todayKey);
+      const updated = existing
+        ? prev.map(l => l.date === todayKey ? { ...l, glasses: Math.max(0, l.glasses + delta) } : l)
+        : [...prev, { date: todayKey, glasses: Math.max(0, delta) }];
+      localStorage.setItem(WATER_LOG_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, [todayKey]);
+
+  const saveWaterGoal = () => {
+    setWaterGoal(tempGoal);
+    localStorage.setItem(WATER_GOAL_KEY, String(tempGoal));
+    setEditingWaterGoal(false);
+  };
+
+  // Workout status helpers
+  const setWorkoutStatus = (dateKey: string, status: WorkoutStatus) => {
+    setWorkoutStatuses(prev => {
+      const updated = { ...prev, [dateKey]: prev[dateKey] === status ? null : status };
+      localStorage.setItem(WORKOUT_STATUS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Calendar
   const today = new Date();
   const monthStart = startOfMonth(today);
   const monthEnd = endOfMonth(today);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  const getWorkoutForDate = (date: Date) => {
-    return workoutPlan.find(w => w.date.startsWith(format(date, 'yyyy-MM-dd')));
-  };
+  const getWorkoutForDate = (date: Date) =>
+    workoutPlan.find(w => w.date.startsWith(format(date, 'yyyy-MM-dd')));
 
+  // Stats
+  const totalCalories = dietPlan.reduce((sum, m) => sum + (m.macros?.calories ?? 0), 0);
+  const completedCount = Object.values(workoutStatuses).filter(s => s === 'completed').length;
+  const skippedCount = Object.values(workoutStatuses).filter(s => s === 'skipped').length;
   const streak = (() => {
     let count = 0;
     const d = new Date(today);
     while (true) {
       const key = format(d, 'yyyy-MM-dd');
-      const has = workoutPlan.some(w => w.date.startsWith(key));
-      if (!has) break;
+      if (workoutStatuses[key] !== 'completed') break;
       count++;
       d.setDate(d.getDate() - 1);
     }
     return count;
   })();
 
-  const totalCalories = dietPlan.reduce((sum, m) => sum + (m.macros?.calories ?? 0), 0);
+  // Water weekly history (last 7 days)
+  const last7 = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (6 - i));
+    const key = format(d, 'yyyy-MM-dd');
+    return { label: format(d, 'EEE'), glasses: waterLog.find(l => l.date === key)?.glasses ?? 0 };
+  });
+
+  const waterPct = Math.min(100, Math.round((todayWater / waterGoal) * 100));
 
   const handleClearPlans = async () => {
-    if (!confirm('Are you sure you want to clear all your plans? This cannot be undone.')) return;
+    if (!confirm('Clear all plans? This cannot be undone.')) return;
     setClearing(true);
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -72,55 +151,52 @@ export default function ProfilePage() {
     setClearing(false);
   };
 
-  const stats = [
-    { label: 'Workouts Planned', value: workoutPlan.length, icon: Calendar, color: 'text-blue-400' },
-    { label: 'Daily Calories', value: totalCalories > 0 ? `${totalCalories} kcal` : '—', icon: Utensils, color: 'text-green-400' },
-    { label: 'Active Streak', value: streak > 0 ? `${streak} Day${streak > 1 ? 's' : ''}` : '—', icon: Flame, color: 'text-orange-400' },
-    { label: 'Plan Status', value: workoutPlan.length > 0 ? 'Active' : 'No Plan', icon: Award, color: 'text-purple-400' },
-  ];
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'workout', label: 'Workout Plan', icon: Dumbbell },
+    { id: 'diet', label: 'Diet Plan', icon: Utensils },
+    { id: 'water', label: 'Hydration', icon: Droplets },
+  ] as const;
+
+  const statusConfig = {
+    completed: { icon: CheckCircle2, color: 'text-green-400', bg: 'bg-green-400/20 border-green-400/50', label: 'Done' },
+    skipped: { icon: MinusCircle, color: 'text-yellow-400', bg: 'bg-yellow-400/20 border-yellow-400/50', label: 'Skip' },
+    missed: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-400/20 border-red-400/50', label: 'Miss' },
+  };
+
+  // Group workouts by day-of-week label for horizontal layout
+  const dayLabels = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
   return (
     <main className="relative min-h-screen bg-transparent overflow-hidden flex flex-col pt-24 pb-12">
       <ParticleBackground />
       <Navbar />
 
-      <div className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-8 z-10 flex flex-col space-y-10">
+      <div className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-8 z-10 flex flex-col space-y-8">
 
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF3366] to-[#FF9933] flex items-center justify-center">
                 <User className="w-5 h-5 text-white" />
               </div>
-              <span className="text-gray-400 text-sm">
-                {authLoading ? 'Loading...' : user ? user.email : 'Guest'}
-              </span>
+              <span className="text-gray-400 text-sm">{authLoading ? 'Loading...' : user?.email ?? 'Guest'}</span>
             </div>
             <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#FF3366] to-[#FF9933]">
               Your Fitness Profile
             </h1>
             <p className="text-gray-400 mt-1">Track your personalized AI plans and progress.</p>
           </div>
-
           <div className="flex items-center gap-3">
-            <Link
-              href="/coach"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF3366] to-[#FF9933] text-white text-sm font-semibold hover:opacity-90 transition-opacity"
-            >
-              <MessageCircle className="w-4 h-4" />
-              AI Coach
+            <Link href="/coach"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF3366] to-[#FF9933] text-white text-sm font-semibold hover:opacity-90 transition-opacity">
+              <MessageCircle className="w-4 h-4" /> AI Coach
             </Link>
             {(workoutPlan.length > 0 || dietPlan.length > 0) && (
-              <button
-                onClick={handleClearPlans}
-                disabled={clearing}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-medium hover:bg-red-500/20 transition-colors disabled:opacity-50"
-              >
+              <button onClick={handleClearPlans} disabled={clearing}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-medium hover:bg-red-500/20 transition-colors disabled:opacity-50">
                 <Trash2 className="w-4 h-4" />
                 {clearing ? 'Clearing...' : 'Clear Plans'}
               </button>
@@ -128,31 +204,26 @@ export default function ProfilePage() {
           </div>
         </motion.div>
 
-        {/* Loading state */}
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-32 gap-4">
             <Loader2 className="w-10 h-10 text-[#FF3366] animate-spin" />
-            <p className="text-gray-400 text-sm">Loading your plans...</p>
+            <p className="text-gray-400 text-sm">Loading your profile...</p>
           </div>
         ) : (
           <>
             {/* Stats Row */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.1 }}
-              className="grid grid-cols-2 md:grid-cols-4 gap-4"
-            >
-              {stats.map((stat, i) => {
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
+              className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { label: 'Workouts Done', value: completedCount || '—', icon: CheckCircle2, color: 'text-green-400' },
+                { label: 'Daily Calories', value: totalCalories > 0 ? `${totalCalories} kcal` : '—', icon: Utensils, color: 'text-orange-400' },
+                { label: 'Active Streak', value: streak > 0 ? `${streak} Day${streak > 1 ? 's' : ''}` : '—', icon: Flame, color: 'text-red-400' },
+                { label: 'Water Today', value: `${todayWater}/${waterGoal} 🥤`, icon: Droplets, color: 'text-blue-400' },
+              ].map((stat, i) => {
                 const Icon = stat.icon;
                 return (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 * i }}
-                    className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center text-center hover:border-white/20 transition-colors"
-                  >
+                  <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * i }}
+                    className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center text-center hover:border-white/20 transition-colors">
                     <Icon className={`w-7 h-7 ${stat.color} mb-3`} />
                     <div className="text-2xl font-bold text-white">{stat.value}</div>
                     <div className="text-xs text-gray-400 uppercase tracking-wider mt-1">{stat.label}</div>
@@ -161,88 +232,197 @@ export default function ProfilePage() {
               })}
             </motion.div>
 
-            {/* Content Grids */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Tab Navigation */}
+            <div className="flex gap-2 flex-wrap">
+              {tabs.map(tab => {
+                const Icon = tab.icon;
+                return (
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all border
+                      ${activeTab === tab.id
+                        ? 'bg-gradient-to-r from-[#FF3366] to-[#FF9933] text-white border-transparent shadow-lg'
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'}`}>
+                    <Icon className="w-4 h-4" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
 
-              {/* Calendar Section */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-6 flex flex-col space-y-6"
-              >
-                <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                  <Calendar className="w-6 h-6 text-[#FF3366]" />
-                  <div>
-                    <h2 className="text-xl font-bold text-white">Workout Calendar</h2>
-                    <p className="text-xs text-gray-500">{format(today, 'MMMM yyyy')}</p>
+            {/* OVERVIEW TAB */}
+            {activeTab === 'overview' && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+
+                {/* Calendar */}
+                <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-6">
+                  <div className="flex items-center gap-3 border-b border-white/10 pb-4 mb-6">
+                    <Calendar className="w-6 h-6 text-[#FF3366]" />
+                    <div>
+                      <h2 className="text-xl font-bold text-white">Workout Calendar</h2>
+                      <p className="text-xs text-gray-500">{format(today, 'MMMM yyyy')} · Mark your sessions</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
+                      <div key={d} className="text-center text-xs font-semibold text-gray-600 py-1">{d}</div>
+                    ))}
+                    {Array.from({ length: monthStart.getDay() }).map((_, i) => <div key={`pad-${i}`} />)}
+                    {daysInMonth.map((date) => {
+                      const dateKey = format(date, 'yyyy-MM-dd');
+                      const plan = getWorkoutForDate(date);
+                      const isToday = isSameDay(date, today);
+                      const status = workoutStatuses[dateKey];
+                      const isPast = date < today && !isToday;
+                      return (
+                        <div key={date.toISOString()} title={plan?.focusArea}
+                          className={`aspect-square rounded-lg flex flex-col items-center justify-center text-xs font-medium transition-all
+                            ${status === 'completed' ? 'bg-green-500/20 border border-green-500/50 text-white'
+                              : status === 'skipped' ? 'bg-yellow-500/20 border border-yellow-500/50 text-white'
+                              : status === 'missed' ? 'bg-red-500/20 border border-red-500/50 text-white'
+                              : plan ? 'bg-[#FF3366]/20 border border-[#FF3366]/40 text-white'
+                              : 'bg-white/5 border border-white/5 text-gray-600'}
+                            ${isToday ? 'ring-2 ring-white ring-offset-1 ring-offset-black' : ''}
+                            ${isPast && plan && !status ? 'opacity-60' : ''}
+                          `}>
+                          {format(date, 'd')}
+                          {status === 'completed' && <span className="w-1.5 h-1.5 rounded-full bg-green-400 mt-0.5" />}
+                          {status === 'skipped' && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 mt-0.5" />}
+                          {status === 'missed' && <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-0.5" />}
+                          {plan && !status && <span className="w-1.5 h-1.5 rounded-full bg-[#FF3366] mt-0.5" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Legend */}
+                  <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-white/10">
+                    {[
+                      { color: 'bg-green-500/50', label: 'Completed' },
+                      { color: 'bg-yellow-500/50', label: 'Skipped' },
+                      { color: 'bg-red-500/50', label: 'Missed' },
+                      { color: 'bg-[#FF3366]/40', label: 'Scheduled' },
+                    ].map(l => (
+                      <div key={l.label} className="flex items-center gap-2 text-xs text-gray-400">
+                        <span className={`w-3 h-3 rounded-full ${l.color}`} />
+                        {l.label}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-7 gap-1.5">
-                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-                    <div key={d} className="text-center text-xs font-semibold text-gray-600 py-1">{d}</div>
-                  ))}
-                  {Array.from({ length: monthStart.getDay() }).map((_, i) => (
-                    <div key={`pad-${i}`} />
-                  ))}
-                  {daysInMonth.map((date) => {
-                    const plan = getWorkoutForDate(date);
-                    const isToday = isSameDay(date, today);
+                {/* Progress Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { label: 'Completed', value: completedCount, color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/20', icon: CheckCircle2 },
+                    { label: 'Skipped', value: skippedCount, color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20', icon: MinusCircle },
+                    { label: 'Total Planned', value: workoutPlan.length, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20', icon: TrendingUp },
+                  ].map((item, i) => {
+                    const Icon = item.icon;
                     return (
-                      <div
-                        key={date.toISOString()}
-                        title={plan ? plan.focusArea : undefined}
-                        className={`aspect-square rounded-lg flex flex-col items-center justify-center text-xs font-medium transition-all cursor-default
-                          ${plan ? 'bg-[#FF3366]/20 border border-[#FF3366]/50 text-white' : 'bg-white/5 border border-white/5 text-gray-500'}
-                          ${isToday ? 'ring-2 ring-white ring-offset-1 ring-offset-black' : ''}
-                        `}
-                      >
-                        {format(date, 'd')}
-                        {plan && <span className="w-1 h-1 rounded-full bg-[#FF3366] mt-0.5" />}
+                      <div key={i} className={`rounded-2xl border p-5 flex items-center gap-4 ${item.bg}`}>
+                        <Icon className={`w-8 h-8 ${item.color}`} />
+                        <div>
+                          <div className={`text-3xl font-bold ${item.color}`}>{item.value}</div>
+                          <div className="text-gray-400 text-sm">{item.label}</div>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
+              </motion.div>
+            )}
+
+            {/* WORKOUT TAB */}
+            {activeTab === 'workout' && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-6 space-y-6">
+                <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+                  <Dumbbell className="w-6 h-6 text-[#FF3366]" />
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Workout Plan</h2>
+                    <p className="text-xs text-gray-500">Mark each session as completed, skipped, or missed</p>
+                  </div>
+                </div>
 
                 {workoutPlan.length > 0 ? (
-                  <div className="space-y-3 overflow-y-auto max-h-72 pr-1">
-                    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Workout Schedule</h3>
-                    {workoutPlan.map((w, i) => (
-                      <div key={i} className="bg-white/5 rounded-xl p-4 border border-white/10 hover:border-[#FF3366]/40 transition-colors">
-                        <div className="flex justify-between items-center mb-3">
-                          <div className="font-bold text-white">{w.focusArea}</div>
-                          <div className="text-xs bg-[#FF3366]/20 text-[#FF3366] px-2 py-1 rounded-full font-mono">{w.date}</div>
-                        </div>
-                        <div className="space-y-1.5">
-                          {w.exercises.map((ex, j) => (
-                            <div key={j} className="flex justify-between text-sm border-t border-white/5 pt-1.5">
-                              <span className="text-gray-300">{ex.name}</span>
-                              <span className="text-gray-500 font-mono text-xs">{ex.sets}×{ex.reps}</span>
+                  <div className="overflow-x-auto pb-2">
+                    <div className="flex gap-4" style={{ minWidth: `${workoutPlan.length * 280}px` }}>
+                      {workoutPlan.map((w, i) => {
+                        const dateKey = w.date.substring(0, 10);
+                        const status = workoutStatuses[dateKey] ?? null;
+                        const dayName = (() => {
+                          try { return format(new Date(dateKey + 'T00:00:00'), 'EEEE'); } catch { return w.date; }
+                        })();
+                        return (
+                          <div key={i}
+                            className={`flex-shrink-0 w-64 rounded-2xl border p-4 flex flex-col gap-4 transition-all
+                              ${status === 'completed' ? 'bg-green-500/10 border-green-500/30'
+                                : status === 'skipped' ? 'bg-yellow-500/10 border-yellow-500/30'
+                                : status === 'missed' ? 'bg-red-500/10 border-red-500/30'
+                                : 'bg-white/5 border-white/10'}`}>
+
+                            {/* Day Header */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-gray-500 font-mono">{dateKey}</span>
+                                {status && (
+                                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold
+                                    ${status === 'completed' ? 'bg-green-500/20 text-green-400'
+                                      : status === 'skipped' ? 'bg-yellow-500/20 text-yellow-400'
+                                      : 'bg-red-500/20 text-red-400'}`}>
+                                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                                  </span>
+                                )}
+                              </div>
+                              <h3 className="text-lg font-bold text-white">{dayName}</h3>
+                              <p className="text-[#FF3366] text-sm font-semibold">{w.focusArea}</p>
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+
+                            {/* Exercises */}
+                            <div className="space-y-2 flex-1">
+                              {w.exercises.map((ex, j) => (
+                                <div key={j} className="flex justify-between items-center bg-black/30 rounded-lg px-3 py-2">
+                                  <span className="text-gray-300 text-sm">{ex.name}</span>
+                                  <span className="text-gray-500 font-mono text-xs whitespace-nowrap ml-2">{ex.sets}×{ex.reps}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Status Buttons */}
+                            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/10">
+                              {(['completed', 'skipped', 'missed'] as const).map((s) => {
+                                const cfg = statusConfig[s];
+                                const Icon = cfg.icon;
+                                const isActive = status === s;
+                                return (
+                                  <button key={s} onClick={() => setWorkoutStatus(dateKey, s)}
+                                    className={`flex flex-col items-center gap-1 py-2 rounded-xl border text-xs font-semibold transition-all
+                                      ${isActive ? cfg.bg + ' ' + cfg.color : 'bg-white/5 border-white/10 text-gray-500 hover:text-white hover:border-white/20'}`}>
+                                    <Icon className="w-4 h-4" />
+                                    {cfg.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center text-center py-10 space-y-3">
-                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
-                      <Calendar className="w-6 h-6 text-gray-600" />
-                    </div>
-                    <p className="text-gray-500 text-sm">No workouts scheduled yet.</p>
-                    <Link href="/coach" className="text-[#FF3366] text-sm hover:underline">Ask the AI Coach →</Link>
+                  <div className="flex flex-col items-center justify-center py-16 gap-4">
+                    <Dumbbell className="w-12 h-12 text-gray-600" />
+                    <p className="text-gray-500">No workout plan yet.</p>
+                    <Link href="/coach" className="text-[#FF3366] text-sm hover:underline">Generate a workout plan →</Link>
                   </div>
                 )}
               </motion.div>
+            )}
 
-              {/* Diet Section */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-6 flex flex-col space-y-6"
-              >
+            {/* DIET TAB */}
+            {activeTab === 'diet' && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-6 space-y-6">
                 <div className="flex items-center gap-3 border-b border-white/10 pb-4">
                   <Utensils className="w-6 h-6 text-green-500" />
                   <div>
@@ -253,20 +433,16 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <div className="space-y-4 overflow-y-auto max-h-[600px] pr-1">
+                <div className="space-y-4">
                   {dietPlan.length > 0 ? (
                     dietPlan.map((meal, i) => (
-                      <div key={i} className="group bg-white/5 rounded-2xl overflow-hidden border border-white/10 hover:border-green-500/40 transition-all duration-300">
+                      <div key={i}
+                        className="group bg-white/5 rounded-2xl overflow-hidden border border-white/10 hover:border-green-500/40 transition-all duration-300">
                         <div className="h-40 w-full relative overflow-hidden bg-gray-900">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={meal.imageUrl}
-                            alt={meal.recipeName}
+                          <img src={meal.imageUrl} alt={meal.recipeName}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=600';
-                            }}
-                          />
+                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=600'; }} />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-4">
                             <div>
                               <p className="text-green-400 text-xs font-bold uppercase tracking-wider mb-0.5">{meal.mealName}</p>
@@ -274,7 +450,6 @@ export default function ProfilePage() {
                             </div>
                           </div>
                         </div>
-
                         <div className="p-4 space-y-3">
                           <div className="grid grid-cols-4 gap-2 text-center text-xs">
                             {[
@@ -289,7 +464,6 @@ export default function ProfilePage() {
                               </div>
                             ))}
                           </div>
-
                           <div>
                             <div className="text-xs font-semibold text-gray-400 mb-2 flex items-center gap-1.5">
                               <Zap className="w-3 h-3 text-yellow-500" /> Ingredients
@@ -297,8 +471,7 @@ export default function ProfilePage() {
                             <ul className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-gray-400">
                               {meal.ingredients.map((ing, j) => (
                                 <li key={j} className="flex items-center gap-1.5">
-                                  <span className="w-1 h-1 rounded-full bg-green-500 shrink-0" />
-                                  {ing}
+                                  <span className="w-1 h-1 rounded-full bg-green-500 shrink-0" />{ing}
                                 </li>
                               ))}
                             </ul>
@@ -307,17 +480,184 @@ export default function ProfilePage() {
                       </div>
                     ))
                   ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center py-10 space-y-3">
-                      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
-                        <Utensils className="w-6 h-6 text-gray-600" />
-                      </div>
-                      <p className="text-gray-500 text-sm">No diet plan yet.</p>
+                    <div className="flex flex-col items-center justify-center py-16 gap-4">
+                      <Utensils className="w-12 h-12 text-gray-600" />
+                      <p className="text-gray-500">No diet plan yet.</p>
                       <Link href="/coach" className="text-green-400 text-sm hover:underline">Generate a meal plan →</Link>
                     </div>
                   )}
                 </div>
               </motion.div>
-            </div>
+            )}
+
+            {/* WATER / HYDRATION TAB */}
+            {activeTab === 'water' && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+
+                {/* Goal + Today Tracker */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                  {/* Today's intake */}
+                  <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-6 flex flex-col items-center gap-6">
+                    <div className="flex items-center gap-3 w-full border-b border-white/10 pb-4">
+                      <Droplets className="w-6 h-6 text-blue-400" />
+                      <div>
+                        <h2 className="text-xl font-bold text-white">Today&apos;s Intake</h2>
+                        <p className="text-xs text-gray-500">{format(today, 'EEEE, MMMM d')}</p>
+                      </div>
+                    </div>
+
+                    {/* Circular progress */}
+                    <div className="relative w-44 h-44">
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
+                        <circle cx="50" cy="50" r="42" fill="none" stroke="url(#waterGrad)" strokeWidth="10"
+                          strokeLinecap="round"
+                          strokeDasharray={`${2 * Math.PI * 42}`}
+                          strokeDashoffset={`${2 * Math.PI * 42 * (1 - waterPct / 100)}`}
+                          className="transition-all duration-500" />
+                        <defs>
+                          <linearGradient id="waterGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#3B82F6" />
+                            <stop offset="100%" stopColor="#06B6D4" />
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-4xl font-bold text-white">{todayWater}</span>
+                        <span className="text-gray-400 text-sm">/ {waterGoal} glasses</span>
+                        <span className="text-blue-400 text-xs font-semibold mt-1">{waterPct}%</span>
+                      </div>
+                    </div>
+
+                    {/* Controls */}
+                    <div className="flex items-center gap-4">
+                      <button onClick={() => updateWater(-1)}
+                        className="w-12 h-12 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center hover:bg-white/20 transition-colors text-xl font-bold">
+                        <Minus className="w-5 h-5" />
+                      </button>
+                      <div className="text-center">
+                        <div className="text-blue-400 text-sm font-semibold">Add/Remove</div>
+                        <div className="text-gray-500 text-xs">1 glass = ~250ml</div>
+                      </div>
+                      <button onClick={() => updateWater(1)}
+                        className="w-12 h-12 rounded-full bg-blue-500/30 border border-blue-500/50 text-blue-400 flex items-center justify-center hover:bg-blue-500/40 transition-colors">
+                        <Plus className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Glass icons */}
+                    <div className="grid grid-cols-4 gap-2 w-full">
+                      {Array.from({ length: waterGoal }).map((_, i) => (
+                        <div key={i} onClick={() => {
+                          const target = i + 1;
+                          const delta = target - todayWater;
+                          if (delta !== 0) updateWater(delta);
+                        }}
+                          className={`flex items-center justify-center p-2 rounded-xl border cursor-pointer transition-all text-lg
+                            ${i < todayWater ? 'bg-blue-500/20 border-blue-500/40 text-blue-400' : 'bg-white/5 border-white/10 text-gray-600'}`}>
+                          🥤
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Goal Setting */}
+                  <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-6 flex flex-col gap-6">
+                    <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+                      <Target className="w-6 h-6 text-[#FF9933]" />
+                      <div>
+                        <h2 className="text-xl font-bold text-white">Daily Goal</h2>
+                        <p className="text-xs text-gray-500">Set your hydration target</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-4 py-4">
+                      <div className="text-6xl font-bold text-white">{waterGoal}</div>
+                      <div className="text-gray-400">glasses per day</div>
+                      <div className="text-gray-500 text-sm">≈ {waterGoal * 250}ml / {(waterGoal * 0.25).toFixed(1)}L</div>
+                    </div>
+
+                    {editingWaterGoal ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => setTempGoal(g => Math.max(1, g - 1))}
+                            className="w-10 h-10 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center hover:bg-white/20">
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <input type="number" value={tempGoal} min={1} max={20}
+                            onChange={e => setTempGoal(Number(e.target.value))}
+                            className="flex-1 bg-white/5 border border-white/20 text-white text-center rounded-xl px-4 py-2 text-xl font-bold focus:outline-none focus:border-blue-400" />
+                          <button onClick={() => setTempGoal(g => Math.min(20, g + 1))}
+                            className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-400 flex items-center justify-center hover:bg-blue-500/30">
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={saveWaterGoal}
+                            className="flex-1 py-2 rounded-xl bg-blue-500/30 border border-blue-500/50 text-blue-400 font-semibold text-sm hover:bg-blue-500/40 transition-colors">
+                            Save Goal
+                          </button>
+                          <button onClick={() => { setEditingWaterGoal(false); setTempGoal(waterGoal); }}
+                            className="flex-1 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-400 font-semibold text-sm hover:bg-white/10 transition-colors">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={() => setEditingWaterGoal(true)}
+                        className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30 text-blue-400 font-semibold text-sm hover:from-blue-500/30 hover:to-cyan-500/30 transition-all flex items-center justify-center gap-2">
+                        <Target className="w-4 h-4" /> Set New Goal
+                      </button>
+                    )}
+
+                    {/* Quick presets */}
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">Quick presets</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {[6, 8, 10, 12].map(g => (
+                          <button key={g} onClick={() => { setWaterGoal(g); setTempGoal(g); localStorage.setItem(WATER_GOAL_KEY, String(g)); }}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-all
+                              ${waterGoal === g ? 'bg-blue-500/30 border-blue-500/50 text-blue-400' : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'}`}>
+                            {g} glasses
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Weekly History */}
+                <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-6">
+                  <div className="flex items-center gap-3 border-b border-white/10 pb-4 mb-6">
+                    <BarChart3 className="w-6 h-6 text-blue-400" />
+                    <h2 className="text-xl font-bold text-white">Weekly History</h2>
+                  </div>
+                  <div className="flex items-end gap-3 h-36">
+                    {last7.map((day, i) => {
+                      const pct = Math.min(100, Math.round((day.glasses / waterGoal) * 100));
+                      const isToday = i === 6;
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                          <span className="text-xs text-gray-500">{day.glasses}g</span>
+                          <div className="w-full bg-white/5 rounded-lg overflow-hidden" style={{ height: '80px' }}>
+                            <div className={`w-full rounded-lg transition-all duration-500 ${isToday ? 'bg-gradient-to-t from-blue-500 to-cyan-400' : 'bg-blue-500/40'}`}
+                              style={{ height: `${pct}%`, marginTop: `${100 - pct}%` }} />
+                          </div>
+                          <span className={`text-xs font-semibold ${isToday ? 'text-blue-400' : 'text-gray-500'}`}>{day.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>7-day avg: {Math.round(last7.reduce((s, d) => s + d.glasses, 0) / 7 * 10) / 10} glasses</span>
+                      <span>Goal: {waterGoal} glasses/day</span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </>
         )}
       </div>
