@@ -28,6 +28,7 @@ interface Message {
   content: string;
   isStreaming?: boolean;
   isError?: boolean;
+  options?: string[];
   plan?: { planType: "workout" | "diet"; data: PlanPayload; saved: boolean };
 }
 
@@ -105,6 +106,7 @@ function DietPlanPreview({ meals }: { meals: DietMeal[] }) {
       {meals.map((meal, i) => (
         <div key={i} className="rounded-xl border border-green-500/20 bg-green-500/5 overflow-hidden">
           <div className="flex items-start gap-3 p-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={meal.imageUrl}
               alt={meal.recipeName}
@@ -134,11 +136,7 @@ function DietPlanPreview({ meals }: { meals: DietMeal[] }) {
 // ── Plan Confirmation Card ───────────────────────────────────────────────────
 
 function PlanConfirmCard({
-  planType,
-  data,
-  saved,
-  onSave,
-  onEdit,
+  planType, data, saved, onSave, onEdit,
 }: {
   planType: "workout" | "diet";
   data: PlanPayload;
@@ -158,14 +156,12 @@ function PlanConfirmCard({
       transition={{ delay: 0.1 }}
       className={`mt-3 rounded-2xl border ${color === "cyan" ? "border-cyan-500/30 bg-cyan-500/5" : "border-green-500/30 bg-green-500/5"} p-4`}
     >
-      {/* Preview */}
       {isWorkout && data.workouts ? (
         <WorkoutPlanPreview workouts={data.workouts} />
       ) : !isWorkout && data.meals ? (
         <DietPlanPreview meals={data.meals} />
       ) : null}
 
-      {/* Action bar */}
       <div className="mt-4 pt-3 border-t border-white/10">
         {saved ? (
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -194,15 +190,13 @@ function PlanConfirmCard({
         ) : (
           <div>
             <p className="text-sm text-slate-300 mb-3 font-medium">
-              Here's your {isWorkout ? "workout" : "diet"} plan! Would you like to add this to your profile, or make any changes?
+              Here&apos;s your {isWorkout ? "workout" : "diet"} plan! Would you like to add this to your profile, or make any changes?
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <button
                 onClick={onSave}
                 className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                  color === "cyan"
-                    ? "bg-cyan-500 hover:bg-cyan-400 text-slate-950"
-                    : "bg-green-500 hover:bg-green-400 text-slate-950"
+                  color === "cyan" ? "bg-cyan-500 hover:bg-cyan-400 text-slate-950" : "bg-green-500 hover:bg-green-400 text-slate-950"
                 }`}
               >
                 <Plus className="w-4 h-4" />
@@ -219,6 +213,57 @@ function PlanConfirmCard({
           </div>
         )}
       </div>
+    </motion.div>
+  );
+}
+
+// ── MCQ Option Buttons ───────────────────────────────────────────────────────
+
+function OptionButtons({
+  options,
+  onSelect,
+  disabled,
+}: {
+  options: string[];
+  onSelect: (opt: string) => void;
+  disabled: boolean;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const handleClick = (opt: string) => {
+    if (disabled || selected) return;
+    setSelected(opt);
+    onSelect(opt);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.15 }}
+      className="flex flex-wrap gap-2 mt-3"
+    >
+      {options.map((opt) => {
+        const isSelected = selected === opt;
+        const isDimmed = selected && !isSelected;
+        return (
+          <button
+            key={opt}
+            onClick={() => handleClick(opt)}
+            disabled={disabled || !!selected}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all duration-200
+              ${isSelected
+                ? "bg-cyan-500 border-cyan-400 text-slate-950 shadow-[0_0_16px_rgba(6,182,212,0.4)] scale-105"
+                : isDimmed
+                ? "bg-white/3 border-white/5 text-slate-600 cursor-default scale-95 opacity-40"
+                : "bg-white/5 border-white/15 text-slate-300 hover:bg-cyan-500/15 hover:border-cyan-500/50 hover:text-cyan-300 hover:scale-105 cursor-pointer"
+              }`}
+          >
+            {isSelected && <span className="mr-1.5">✓</span>}
+            {opt}
+          </button>
+        );
+      })}
     </motion.div>
   );
 }
@@ -256,7 +301,6 @@ export default function CoachPage() {
 
   const handleSavePlan = async (msgId: string, planType: "workout" | "diet", data: PlanPayload) => {
     try {
-      // Save to Supabase via API
       const res = await fetch("/api/save-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -268,11 +312,9 @@ export default function CoachPage() {
         throw new Error(err.error ?? "Save failed");
       }
 
-      // Also update Zustand so profile doesn't need a network round-trip if already open
       if (planType === "workout" && data.workouts) saveWorkoutPlan(data.workouts);
       if (planType === "diet" && data.meals) saveDietPlan(data.meals);
 
-      // Mark message card as saved
       setMessages((prev) =>
         prev.map((m) =>
           m.id === msgId && m.plan ? { ...m, plan: { ...m.plan, saved: true } } : m
@@ -306,7 +348,7 @@ export default function CoachPage() {
 
     try {
       const history = updatedMessages
-        .slice(-7, -1)
+        .slice(-13, -1)
         .map((m) => ({ role: m.role, content: m.content }));
 
       const res = await fetch("/api/chat", {
@@ -359,19 +401,15 @@ export default function CoachPage() {
             if (parsed.type === "delta") {
               accumulatedText += parsed.content;
               setMessages((prev) =>
-                prev.map((m) => m.id === assistantId ? { ...m, content: accumulatedText, isStreaming: true } : m)
+                prev.map((m) => m.id === assistantId
+                  ? { ...m, content: accumulatedText, isStreaming: true, options: parsed.options ?? [] }
+                  : m)
               );
             } else if (parsed.type === "plan") {
-              // Show plan preview with confirmation UI — do NOT auto-save
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantId
-                    ? {
-                        ...m,
-                        content: accumulatedText,
-                        isStreaming: false,
-                        plan: { planType: parsed.planType, data: parsed.data, saved: false },
-                      }
+                    ? { ...m, content: accumulatedText, isStreaming: false, options: [], plan: { planType: parsed.planType, data: parsed.data, saved: false } }
                     : m
                 )
               );
@@ -405,6 +443,10 @@ export default function CoachPage() {
   };
 
   const isInputDisabled = isLoading || rateLimitCountdown !== null;
+
+  // Check if the last assistant message has options (to dim the input)
+  const lastMsg = messages[messages.length - 1];
+  const hasActiveOptions = lastMsg?.role === "assistant" && !lastMsg.isStreaming && (lastMsg.options?.length ?? 0) > 0;
 
   return (
     <main className="relative min-h-screen bg-transparent overflow-hidden flex flex-col font-sans">
@@ -450,8 +492,9 @@ export default function CoachPage() {
 
         <div className="flex-1 overflow-y-auto space-y-6 scroll-smooth pb-4 pr-1">
           <AnimatePresence initial={false}>
-            {messages.map((m) => {
+            {messages.map((m, idx) => {
               const isUser = m.role === "user";
+              const isLastAssistant = !isUser && idx === messages.length - 1;
               return (
                 <motion.div
                   key={m.id}
@@ -467,7 +510,6 @@ export default function CoachPage() {
                   )}
 
                   <div className={`flex flex-col max-w-[90%] md:max-w-[80%] ${isUser ? "items-end" : "items-start"}`}>
-                    {/* Text bubble — only show if there's text content */}
                     {(m.content || m.isStreaming) && (
                       <div className={`px-5 py-3.5 rounded-2xl text-sm md:text-base leading-relaxed whitespace-pre-wrap ${
                         isUser
@@ -481,6 +523,15 @@ export default function CoachPage() {
                           <span className="inline-block w-1.5 h-4 bg-cyan-400 ml-0.5 animate-pulse rounded-sm align-middle" />
                         )}
                       </div>
+                    )}
+
+                    {/* MCQ Option Buttons — only on last assistant message, after streaming done */}
+                    {!isUser && !m.isStreaming && (m.options?.length ?? 0) > 0 && isLastAssistant && (
+                      <OptionButtons
+                        options={m.options!}
+                        onSelect={(opt) => sendMessage(opt)}
+                        disabled={isInputDisabled}
+                      />
                     )}
 
                     {/* Plan confirmation card */}
@@ -536,9 +587,17 @@ export default function CoachPage() {
             <div className="flex items-center gap-2">
               <input
                 ref={inputRef}
-                className="flex-1 bg-transparent text-white placeholder:text-slate-500 px-4 py-3 focus:outline-none disabled:opacity-40 text-sm md:text-base"
+                className={`flex-1 bg-transparent placeholder:text-slate-500 px-4 py-3 focus:outline-none text-sm md:text-base transition-colors
+                  ${hasActiveOptions ? "text-slate-500 cursor-default" : "text-white"}
+                  ${isInputDisabled ? "opacity-40" : ""}`}
                 value={input}
-                placeholder={rateLimitCountdown !== null ? `Wait ${rateLimitCountdown}s...` : "Ask anything about fitness, nutrition, or build a plan..."}
+                placeholder={
+                  rateLimitCountdown !== null
+                    ? `Wait ${rateLimitCountdown}s...`
+                    : hasActiveOptions
+                    ? "Choose an option above, or type your own answer..."
+                    : "Ask anything about fitness, nutrition, or build a plan..."
+                }
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isInputDisabled}

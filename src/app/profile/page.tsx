@@ -8,7 +8,7 @@ import {
   Loader2, CheckCircle2, XCircle, MinusCircle, Droplets, Target,
   TrendingUp, ChevronLeft, ChevronRight, Dumbbell, BarChart3, Plus, Minus
 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, subMonths } from 'date-fns';
 import { Navbar } from '@/components/layout/Navbar';
 import { ParticleBackground } from '@/components/animations/ParticleBackground';
 import { createClient } from '@/lib/supabase/client';
@@ -18,7 +18,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 type WorkoutStatus = 'completed' | 'skipped' | 'missed' | null;
 
 interface WaterLog {
-  date: string; // yyyy-MM-dd
+  date: string;
   glasses: number;
 }
 
@@ -30,11 +30,105 @@ const WATER_GOAL_KEY = 'fitmentor_water_goal';
 const WATER_LOG_KEY = 'fitmentor_water_log';
 const WORKOUT_STATUS_KEY = 'fitmentor_workout_status';
 
+// ── Tiny SVG Line Chart ────────────────────────────────────────────────────
+function LineChart({
+  data,
+  color = '#FF3366',
+  height = 80,
+}: {
+  data: { label: string; value: number }[];
+  color?: string;
+  height?: number;
+}) {
+  if (!data.length) return null;
+  const max = Math.max(...data.map(d => d.value), 1);
+  const w = 300;
+  const h = height;
+  const pad = 8;
+  const step = (w - pad * 2) / Math.max(data.length - 1, 1);
+  const points = data.map((d, i) => ({
+    x: pad + i * step,
+    y: h - pad - ((d.value / max) * (h - pad * 2)),
+  }));
+  const polyline = points.map(p => `${p.x},${p.y}`).join(' ');
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height }}>
+      <defs>
+        <linearGradient id={`lg-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.03" />
+        </linearGradient>
+      </defs>
+      {/* Fill area */}
+      <polygon
+        points={`${points[0].x},${h - pad} ${polyline} ${points[points.length - 1].x},${h - pad}`}
+        fill={`url(#lg-${color.replace('#', '')})`}
+      />
+      {/* Line */}
+      <polyline points={polyline} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      {/* Dots */}
+      {points.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r="3" fill={color} />
+      ))}
+    </svg>
+  );
+}
+
+// ── Tiny SVG Pie / Donut Chart ─────────────────────────────────────────────
+function DonutChart({
+  slices,
+}: {
+  slices: { label: string; value: number; color: string }[];
+}) {
+  const total = slices.reduce((s, d) => s + d.value, 0) || 1;
+  const r = 38;
+  const cx = 50;
+  const cy = 50;
+  const circumference = 2 * Math.PI * r;
+  let offset = 0;
+
+  const arcs = slices.map(slice => {
+    const pct = slice.value / total;
+    const dash = pct * circumference;
+    const gap = circumference - dash;
+    const arc = { ...slice, dash, gap, offset };
+    offset += dash;
+    return arc;
+  });
+
+  return (
+    <svg viewBox="0 0 100 100" className="w-28 h-28">
+      {arcs.map((arc, i) => (
+        <circle
+          key={i}
+          cx={cx} cy={cy} r={r}
+          fill="none"
+          stroke={arc.color}
+          strokeWidth="14"
+          strokeDasharray={`${arc.dash} ${arc.gap}`}
+          strokeDashoffset={-arc.offset}
+          className="transition-all duration-700"
+          style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+        />
+      ))}
+      <circle cx={cx} cy={cy} r="26" fill="rgba(0,0,0,0.6)" />
+      <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="9" fontWeight="bold">
+        {total}
+      </text>
+      <text x={cx} y={cy + 10} textAnchor="middle" dominantBaseline="middle" fill="#888" fontSize="5">
+        sessions
+      </text>
+    </svg>
+  );
+}
+
 export default function ProfilePage() {
   const { workoutPlan, dietPlan, loadFromSupabase, clearPlans, _supabaseLoaded } = useUserStore();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [clearing, setClearing] = useState(false);
+  const [clearingDiet, setClearingDiet] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'workout' | 'diet' | 'water'>('overview');
 
   // Water tracking
@@ -47,10 +141,8 @@ export default function ProfilePage() {
   const [workoutStatuses, setWorkoutStatuses] = useState<WorkoutStatusLog>({});
 
   const todayKey = format(new Date(), 'yyyy-MM-dd');
-
   const todayWater = waterLog.find(l => l.date === todayKey)?.glasses ?? 0;
 
-  // Load from localStorage
   useEffect(() => {
     const savedGoal = localStorage.getItem(WATER_GOAL_KEY);
     if (savedGoal) { setWaterGoal(Number(savedGoal)); setTempGoal(Number(savedGoal)); }
@@ -74,7 +166,6 @@ export default function ProfilePage() {
 
   const isLoading = authLoading || !_supabaseLoaded;
 
-  // Water helpers
   const updateWater = useCallback((delta: number) => {
     setWaterLog(prev => {
       const existing = prev.find(l => l.date === todayKey);
@@ -92,7 +183,6 @@ export default function ProfilePage() {
     setEditingWaterGoal(false);
   };
 
-  // Workout status helpers
   const setWorkoutStatus = (dateKey: string, status: WorkoutStatus) => {
     setWorkoutStatuses(prev => {
       const updated = { ...prev, [dateKey]: prev[dateKey] === status ? null : status };
@@ -114,6 +204,7 @@ export default function ProfilePage() {
   const totalCalories = dietPlan.reduce((sum, m) => sum + (m.macros?.calories ?? 0), 0);
   const completedCount = Object.values(workoutStatuses).filter(s => s === 'completed').length;
   const skippedCount = Object.values(workoutStatuses).filter(s => s === 'skipped').length;
+  const missedCount = Object.values(workoutStatuses).filter(s => s === 'missed').length;
   const streak = (() => {
     let count = 0;
     const d = new Date(today);
@@ -136,6 +227,38 @@ export default function ProfilePage() {
 
   const waterPct = Math.min(100, Math.round((todayWater / waterGoal) * 100));
 
+  // ── Analytics: build per-week completed counts for this month & last month ──
+  const buildWeeklyData = (monthDate: Date) => {
+    const start = startOfMonth(monthDate);
+    const end = endOfMonth(monthDate);
+    const days = eachDayOfInterval({ start, end });
+    const weeks: { label: string; value: number }[] = [];
+    let weekNum = 1;
+    let weekCount = 0;
+    let weekStart = start;
+    days.forEach((d, idx) => {
+      const key = format(d, 'yyyy-MM-dd');
+      if (workoutStatuses[key] === 'completed') weekCount++;
+      const isLastDayOfWeek = d.getDay() === 6 || idx === days.length - 1;
+      if (isLastDayOfWeek) {
+        weeks.push({ label: `W${weekNum}`, value: weekCount });
+        weekNum++;
+        weekCount = 0;
+        weekStart = d;
+      }
+    });
+    return weeks;
+  };
+
+  const thisMonthData = buildWeeklyData(today);
+  const lastMonthData = buildWeeklyData(subMonths(today, 1));
+
+  const donutSlices = [
+    { label: 'Completed', value: completedCount, color: '#22c55e' },
+    { label: 'Skipped', value: skippedCount, color: '#eab308' },
+    { label: 'Missed', value: missedCount, color: '#ef4444' },
+  ].filter(s => s.value > 0);
+
   const handleClearPlans = async () => {
     if (!confirm('Clear all plans? This cannot be undone.')) return;
     setClearing(true);
@@ -151,6 +274,19 @@ export default function ProfilePage() {
     setClearing(false);
   };
 
+  const handleClearDietPlan = async () => {
+    if (!confirm('Delete your current diet plan? You can generate a new one from the AI coach.')) return;
+    setClearingDiet(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from('diet_plans').delete().eq('user_id', user.id);
+    }
+    // Clear only diet from store — keep workout
+    useUserStore.setState({ dietPlan: [] });
+    setClearingDiet(false);
+  };
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'workout', label: 'Workout Plan', icon: Dumbbell },
@@ -164,7 +300,6 @@ export default function ProfilePage() {
     missed: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-400/20 border-red-400/50', label: 'Miss' },
   };
 
-  // Group workouts by day-of-week label for horizontal layout
   const dayLabels = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
   return (
@@ -198,7 +333,7 @@ export default function ProfilePage() {
               <button onClick={handleClearPlans} disabled={clearing}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-medium hover:bg-red-500/20 transition-colors disabled:opacity-50">
                 <Trash2 className="w-4 h-4" />
-                {clearing ? 'Clearing...' : 'Clear Plans'}
+                {clearing ? 'Clearing...' : 'Clear All'}
               </button>
             )}
           </div>
@@ -293,8 +428,6 @@ export default function ProfilePage() {
                       );
                     })}
                   </div>
-
-                  {/* Legend */}
                   <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-white/10">
                     {[
                       { color: 'bg-green-500/50', label: 'Completed' },
@@ -310,7 +443,118 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Progress Summary */}
+                {/* ── Analytics Section ─────────────────────────────────── */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                  {/* Line Chart — This Month vs Last Month */}
+                  <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-6">
+                    <div className="flex items-center gap-3 border-b border-white/10 pb-4 mb-5">
+                      <TrendingUp className="w-5 h-5 text-[#FF3366]" />
+                      <div>
+                        <h2 className="text-base font-bold text-white">Weekly Progress</h2>
+                        <p className="text-xs text-gray-500">Completed workouts per week</p>
+                      </div>
+                    </div>
+
+                    {/* Legend */}
+                    <div className="flex gap-4 mb-4">
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <span className="w-6 h-0.5 bg-[#FF3366] rounded-full inline-block" />
+                        {format(today, 'MMM yyyy')}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <span className="w-6 h-0.5 bg-[#FF9933] rounded-full inline-block" />
+                        {format(subMonths(today, 1), 'MMM yyyy')}
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <div className="absolute inset-0 pointer-events-none">
+                        <LineChart data={lastMonthData} color="#FF9933" height={90} />
+                      </div>
+                      <LineChart data={thisMonthData} color="#FF3366" height={90} />
+                    </div>
+
+                    {/* X labels */}
+                    <div className="flex justify-between mt-1 px-2">
+                      {thisMonthData.map((d, i) => (
+                        <span key={i} className="text-[10px] text-gray-600">{d.label}</span>
+                      ))}
+                    </div>
+
+                    {/* Summary numbers */}
+                    <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-3">
+                      <div className="bg-[#FF3366]/10 rounded-xl p-3 text-center">
+                        <div className="text-lg font-bold text-[#FF3366]">{completedCount}</div>
+                        <div className="text-[10px] text-gray-500">This month</div>
+                      </div>
+                      <div className="bg-[#FF9933]/10 rounded-xl p-3 text-center">
+                        <div className="text-lg font-bold text-[#FF9933]">
+                          {lastMonthData.reduce((s, d) => s + d.value, 0)}
+                        </div>
+                        <div className="text-[10px] text-gray-500">Last month</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Donut Chart — Session Breakdown */}
+                  <div className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-6">
+                    <div className="flex items-center gap-3 border-b border-white/10 pb-4 mb-5">
+                      <BarChart3 className="w-5 h-5 text-[#FF9933]" />
+                      <div>
+                        <h2 className="text-base font-bold text-white">Session Breakdown</h2>
+                        <p className="text-xs text-gray-500">All-time workout distribution</p>
+                      </div>
+                    </div>
+
+                    {donutSlices.length > 0 ? (
+                      <div className="flex items-center gap-6">
+                        <DonutChart slices={donutSlices} />
+                        <div className="flex flex-col gap-3 flex-1">
+                          {[
+                            { label: 'Completed', value: completedCount, color: 'text-green-400', dot: 'bg-green-500' },
+                            { label: 'Skipped', value: skippedCount, color: 'text-yellow-400', dot: 'bg-yellow-500' },
+                            { label: 'Missed', value: missedCount, color: 'text-red-400', dot: 'bg-red-500' },
+                          ].map((s, i) => {
+                            const total = completedCount + skippedCount + missedCount || 1;
+                            const pct = Math.round((s.value / total) * 100);
+                            return (
+                              <div key={i} className="flex items-center gap-3">
+                                <span className={`w-2.5 h-2.5 rounded-full ${s.dot} shrink-0`} />
+                                <div className="flex-1">
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className="text-gray-400">{s.label}</span>
+                                    <span className={`font-bold ${s.color}`}>{s.value} ({pct}%)</span>
+                                  </div>
+                                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                    <div className={`h-full rounded-full transition-all duration-700 ${s.dot}`}
+                                      style={{ width: `${pct}%` }} />
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          <div className="pt-2 border-t border-white/10">
+                            <div className="text-xs text-gray-500">
+                              Completion rate: <span className="text-green-400 font-bold">
+                                {completedCount + skippedCount + missedCount > 0
+                                  ? `${Math.round((completedCount / (completedCount + skippedCount + missedCount)) * 100)}%`
+                                  : '—'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-10 gap-3">
+                        <BarChart3 className="w-10 h-10 text-gray-700" />
+                        <p className="text-gray-500 text-sm text-center">No data yet. Start marking your workout sessions!</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {[
                     { label: 'Completed', value: completedCount, color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/20', icon: CheckCircle2 },
@@ -361,7 +605,6 @@ export default function ProfilePage() {
                                 : status === 'missed' ? 'bg-red-500/10 border-red-500/30'
                                 : 'bg-white/5 border-white/10'}`}>
 
-                            {/* Day Header */}
                             <div>
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-xs text-gray-500 font-mono">{dateKey}</span>
@@ -378,7 +621,6 @@ export default function ProfilePage() {
                               <p className="text-[#FF3366] text-sm font-semibold">{w.focusArea}</p>
                             </div>
 
-                            {/* Exercises */}
                             <div className="space-y-2 flex-1">
                               {w.exercises.map((ex, j) => (
                                 <div key={j} className="flex justify-between items-center bg-black/30 rounded-lg px-3 py-2">
@@ -388,7 +630,6 @@ export default function ProfilePage() {
                               ))}
                             </div>
 
-                            {/* Status Buttons */}
                             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/10">
                               {(['completed', 'skipped', 'missed'] as const).map((s) => {
                                 const cfg = statusConfig[s];
@@ -423,14 +664,26 @@ export default function ProfilePage() {
             {activeTab === 'diet' && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                 className="bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-6 space-y-6">
-                <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                  <Utensils className="w-6 h-6 text-green-500" />
-                  <div>
-                    <h2 className="text-xl font-bold text-white">Diet Plan</h2>
-                    {dietPlan.length > 0 && (
-                      <p className="text-xs text-gray-500">{dietPlan.length} meals · {totalCalories} kcal/day</p>
-                    )}
+                <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                  <div className="flex items-center gap-3">
+                    <Utensils className="w-6 h-6 text-green-500" />
+                    <div>
+                      <h2 className="text-xl font-bold text-white">Diet Plan</h2>
+                      {dietPlan.length > 0 && (
+                        <p className="text-xs text-gray-500">{dietPlan.length} meals · {totalCalories} kcal/day</p>
+                      )}
+                    </div>
                   </div>
+                  {/* Delete Diet Plan Button */}
+                  {dietPlan.length > 0 && (
+                    <button
+                      onClick={handleClearDietPlan}
+                      disabled={clearingDiet}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-medium hover:bg-red-500/20 transition-colors disabled:opacity-50">
+                      <Trash2 className="w-4 h-4" />
+                      {clearingDiet ? 'Deleting...' : 'Delete Diet Plan'}
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-4">
@@ -494,7 +747,6 @@ export default function ProfilePage() {
             {activeTab === 'water' && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
 
-                {/* Goal + Today Tracker */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                   {/* Today's intake */}
@@ -507,7 +759,6 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    {/* Circular progress */}
                     <div className="relative w-44 h-44">
                       <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                         <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
@@ -530,7 +781,6 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    {/* Controls */}
                     <div className="flex items-center gap-4">
                       <button onClick={() => updateWater(-1)}
                         className="w-12 h-12 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center hover:bg-white/20 transition-colors text-xl font-bold">
@@ -546,7 +796,6 @@ export default function ProfilePage() {
                       </button>
                     </div>
 
-                    {/* Glass icons */}
                     <div className="grid grid-cols-4 gap-2 w-full">
                       {Array.from({ length: waterGoal }).map((_, i) => (
                         <div key={i} onClick={() => {
@@ -611,7 +860,6 @@ export default function ProfilePage() {
                       </button>
                     )}
 
-                    {/* Quick presets */}
                     <div>
                       <p className="text-xs text-gray-500 mb-2">Quick presets</p>
                       <div className="flex gap-2 flex-wrap">

@@ -9,36 +9,68 @@ const SYSTEM_PROMPT = `You are FitMentor, an expert fitness and nutrition AI coa
 CRITICAL RULES:
 - NEVER output raw JSON anywhere in your responses. Always use natural language only.
 - Ask exactly ONE question at a time when gathering info. Wait for reply before asking the next.
-- Keep all non-plan responses to 3-5 sentences max.
+- Keep all non-plan responses to 2-3 sentences max.
 - Do not number your questions. Ask them naturally and conversationally.
 - Remember all answers the user gives and never re-ask them.
+
+OPTION BUTTONS RULE (VERY IMPORTANT):
+- When a question has a fixed set of choices, you MUST append an <OPTIONS> tag on a new line after your question.
+- Format: <OPTIONS>Option 1|Option 2|Option 3</OPTIONS>
+- Only use <OPTIONS> for choice-based questions, NOT for open-ended questions (like name, injuries, etc).
+- Keep option labels short (2-5 words max per option).
+- The user will click a button instead of typing — so options must be self-contained answers.
+
+HEIGHT/WEIGHT INPUT RULE (VERY IMPORTANT):
+- When you need the user's height AND weight (body stats question in diet flow), output ONLY this tag on its own line:
+  <HEIGHT_WEIGHT_INPUT/>
+- Do NOT ask height and weight as a text question. Just output the tag after a short prompt like "What are your body stats?"
 
 ============================
 WORKOUT PLAN CREATION FLOW:
 ============================
-Gather these ONE AT A TIME in this order. Do not skip any:
+Gather these ONE AT A TIME in this order. Keep questions short (one sentence):
 
-1. Goal — Ask: "What's your primary fitness goal? (e.g. build muscle, lose fat, improve strength, increase endurance, stay active)"
-2. Training location — Ask: "Will you be training at a GYM or at HOME? (or both?)"
-3. Equipment — If GYM: ask what equipment is available (full gym, barbells, dumbbells only, cables, machines, etc). If HOME: ask what they have (no equipment / bodyweight only, dumbbells, resistance bands, pull-up bar, etc).
-4. Training style — Ask: "What type of training do you prefer? For example: weight training (hypertrophy), powerlifting (strength & heavy compound lifts), calisthenics (bodyweight skills & progressions), HIIT, or a mix?"
-5. Training split — Ask: "Which workout split suits your schedule? Options: Push/Pull/Legs (PPL), Upper/Lower, Full Body, Bro Split (chest day, back day, etc), Push/Pull/Legs + Abs, or a custom split?"
-6. Days per week — Ask: "How many days per week can you train? (1–7)"
-7. Session duration — Ask: "How long is each session? (e.g. 30 min, 45 min, 60 min, 90 min)"
-8. Exercises per session — Ask: "How many exercises would you like per session? (e.g. 4, 5, 6, 8)"
-9. Experience level — Ask: "What's your experience level? Beginner (< 1 year), Intermediate (1–3 years), or Advanced (3+ years)?"
-10. Injuries or limitations — Ask: "Any injuries, physical limitations or muscle groups to avoid?"
+1. Goal:
+<OPTIONS>Build Muscle|Lose Fat|Improve Strength|Boost Endurance|Stay Active & Fit</OPTIONS>
 
-Once ALL 10 answers are collected, generate the plan immediately. Use today's date as the start date and assign correct calendar dates to each day.
+2. Training location:
+<OPTIONS>Gym|Home|Both Gym & Home</OPTIONS>
+
+3. Equipment — If GYM:
+<OPTIONS>Full Gym (all machines)|Barbells & Squat Rack|Dumbbells Only|Cables & Machines|Resistance Bands</OPTIONS>
+If HOME:
+<OPTIONS>No Equipment (bodyweight only)|Dumbbells|Resistance Bands|Pull-up Bar|Full Home Gym Setup</OPTIONS>
+
+4. Training style:
+<OPTIONS>Weight Training (Hypertrophy)|Powerlifting (Heavy Compounds)|Calisthenics (Bodyweight)|HIIT & Cardio|Mix of Everything</OPTIONS>
+
+5. Training split:
+<OPTIONS>Push / Pull / Legs (PPL)|Upper / Lower Body|Full Body|Bro Split (one muscle/day)|PPL + Abs|Custom</OPTIONS>
+
+6. Days per week:
+<OPTIONS>2 days|3 days|4 days|5 days|6 days</OPTIONS>
+
+7. Session duration:
+<OPTIONS>30 minutes|45 minutes|60 minutes|90 minutes</OPTIONS>
+
+8. Exercises per session:
+<OPTIONS>4 exercises|5 exercises|6 exercises|8 exercises</OPTIONS>
+
+9. Experience level:
+<OPTIONS>Beginner (< 1 year)|Intermediate (1–3 years)|Advanced (3+ years)</OPTIONS>
+
+10. Injuries or limitations — Open-ended, do NOT add OPTIONS.
+
+Once ALL 10 answers are collected, generate the plan immediately. Use today's date as the start date.
 
 IMPORTANT PLAN GENERATION RULES:
 - Match exercise count exactly to what the user requested
-- Match the training style (calisthenics = bodyweight progressions like push-up variations, pull-up variations, dips, pistol squats, L-sits, etc; powerlifting = squat/bench/deadlift heavy compounds with low reps 1-5; hypertrophy = moderate weight 8-15 reps; HIIT = circuits with short rest)
-- Match the split exactly (PPL = push day, pull day, legs day; Upper/Lower = upper body day, lower body day; etc)
-- Beginners: simpler compound movements, higher reps, less volume
+- Match the training style (calisthenics = bodyweight progressions; powerlifting = heavy compounds 1-5 reps; hypertrophy = 8-15 reps; HIIT = circuits)
+- Match the split exactly
+- Beginners: simpler movements, higher reps, less volume
 - Advanced: more exercises, periodisation notes, heavier intensity cues
 - Include helpful notes per exercise (tempo, cues, rest time)
-- Assign proper focus area names per day (e.g. "Push Day - Chest & Triceps", "Pull Day - Back & Biceps", "Legs Day - Quads & Hamstrings", "Full Body", "Upper Body", "Lower Body + Abs", etc)
+- Assign proper focus area names per day (e.g. "Push Day — Chest & Triceps")
 
 Output ONLY this block with no extra text before or after it:
 
@@ -49,28 +81,41 @@ Output ONLY this block with no extra text before or after it:
 ==========================
 DIET PLAN CREATION FLOW:
 ==========================
-Gather these ONE AT A TIME in this order:
+Gather these ONE AT A TIME in this order. Keep questions short:
 
-1. Diet type — Ask: "Do you follow a vegetarian, vegan, non-vegetarian diet? Any specific cuisine preferences?"
-2. Allergies — Ask: "Any food allergies or ingredients you absolutely want to avoid?"
-3. Goal — Ask: "Is your diet goal to lose fat (calorie deficit), build muscle (calorie surplus), or maintain weight?"
-4. Activity level — Ask: "How active are you daily outside of workouts? Sedentary (desk job), lightly active, moderately active, or very active?"
-5. Body stats — Ask: "What's your approximate weight and height? This helps me calculate your calorie target."
-6. Meals per day — Ask: "How many meals per day do you prefer? (e.g. 3 meals, 4 meals, 3 meals + 2 snacks)"
-7. Cooking time — Ask: "How much time can you spend cooking per meal? Quick (under 15 min), moderate (15–30 min), or no limit?"
+1. Diet type:
+<OPTIONS>Vegetarian|Vegan|Non-Vegetarian|Pescatarian|No Restriction</OPTIONS>
 
-Once ALL 7 answers are collected, calculate an appropriate calorie target based on their stats, goal and activity level, then generate the plan.
+2. Allergies — Open-ended, do NOT add OPTIONS.
+
+3. Goal:
+<OPTIONS>Lose Fat (Calorie Deficit)|Build Muscle (Calorie Surplus)|Maintain Weight</OPTIONS>
+
+4. Activity level:
+<OPTIONS>Sedentary (desk job)|Lightly Active|Moderately Active|Very Active</OPTIONS>
+
+5. Body stats — Output ONLY: "What are your body stats?"
+Then on the next line output: <HEIGHT_WEIGHT_INPUT/>
+Do NOT ask this as a regular text question.
+
+6. Meals per day:
+<OPTIONS>3 Meals|4 Meals|3 Meals + 1 Snack|3 Meals + 2 Snacks|5–6 Small Meals</OPTIONS>
+
+7. Cooking time:
+<OPTIONS>Quick (under 15 min)|Moderate (15–30 min)|No Limit</OPTIONS>
+
+Once ALL 7 answers are collected, calculate an appropriate calorie target and generate the plan.
 
 IMPORTANT DIET PLAN RULES:
-- Calculate realistic macros (protein: 1.8–2.2g per kg for muscle, 1.6–2g for fat loss; carbs and fat to fill remaining calories)
+- Calculate realistic macros (protein: 1.8–2.2g per kg for muscle, 1.6–2g for fat loss)
 - Each meal must have a realistic, delicious recipe name matching their diet type
-- Ingredients must match the diet type strictly (no meat if vegetarian/vegan)
-- Use real food photos from Unsplash — pick relevant photo keywords for each meal type:
-  * Breakfast: use https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=600
-  * Salads/Lunch: use https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600
-  * Dinner/Protein: use https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=600
-  * Snacks: use https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?w=600
-  * Smoothies: use https://images.unsplash.com/photo-1502741338009-cac2772e18bc?w=600
+- Ingredients must match the diet type strictly
+- Use these Unsplash image URLs per meal type:
+  * Breakfast: https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=600
+  * Salads/Lunch: https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600
+  * Dinner/Protein: https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=600
+  * Snacks: https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?w=600
+  * Smoothies: https://images.unsplash.com/photo-1502741338009-cac2772e18bc?w=600
 
 Output ONLY this block with no extra text before or after it:
 
@@ -81,7 +126,7 @@ Output ONLY this block with no extra text before or after it:
 ============================
 ALL OTHER QUESTIONS:
 ============================
-Answer in plain natural language. 3-5 sentences max. Never output JSON. Be motivating and specific.`;
+Answer in plain natural language. 2-3 sentences max. Never output JSON. Be motivating and specific.`;
 
 function applyRateLimit(key: string) {
   const now = Date.now();
@@ -99,41 +144,52 @@ function extractPlanFromResponse(content: string): {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
   cleanText: string;
+  options: string[];
+  showHeightWeightInput: boolean;
 } {
-  const workoutMatch = content.match(/<WORKOUT_PLAN>([\s\S]*?)<\/WORKOUT_PLAN>/);
+  // Extract options
+  const optionsMatch = content.match(/<OPTIONS>(.*?)<\/OPTIONS>/s);
+  const options = optionsMatch ? optionsMatch[1].split('|').map(o => o.trim()).filter(Boolean) : [];
+  let cleanedContent = content.replace(/<OPTIONS>[\s\S]*?<\/OPTIONS>/g, '').trim();
+
+  // Detect height/weight input trigger
+  const showHeightWeightInput = /<HEIGHT_WEIGHT_INPUT\s*\/>/.test(cleanedContent);
+  cleanedContent = cleanedContent.replace(/<HEIGHT_WEIGHT_INPUT\s*\/>/g, '').trim();
+
+  const workoutMatch = cleanedContent.match(/<WORKOUT_PLAN>([\s\S]*?)<\/WORKOUT_PLAN>/);
   if (workoutMatch) {
     try {
       const data = JSON.parse(workoutMatch[1].trim());
-      const cleanText = content.replace(/<WORKOUT_PLAN>[\s\S]*?<\/WORKOUT_PLAN>/, '').trim();
-      return { type: 'workout', data: { tool: 'createWorkoutPlan', ...data }, cleanText };
+      const cleanText = cleanedContent.replace(/<WORKOUT_PLAN>[\s\S]*?<\/WORKOUT_PLAN>/, '').trim();
+      return { type: 'workout', data: { tool: 'createWorkoutPlan', ...data }, cleanText, options: [], showHeightWeightInput: false };
     } catch { /* fall through */ }
   }
 
-  const dietMatch = content.match(/<DIET_PLAN>([\s\S]*?)<\/DIET_PLAN>/);
+  const dietMatch = cleanedContent.match(/<DIET_PLAN>([\s\S]*?)<\/DIET_PLAN>/);
   if (dietMatch) {
     try {
       const data = JSON.parse(dietMatch[1].trim());
-      const cleanText = content.replace(/<DIET_PLAN>[\s\S]*?<\/DIET_PLAN>/, '').trim();
-      return { type: 'diet', data: { tool: 'createDietPlan', ...data }, cleanText };
+      const cleanText = cleanedContent.replace(/<DIET_PLAN>[\s\S]*?<\/DIET_PLAN>/, '').trim();
+      return { type: 'diet', data: { tool: 'createDietPlan', ...data }, cleanText, options: [], showHeightWeightInput: false };
     } catch { /* fall through */ }
   }
 
-  // Safety net: strip any leaked JSON from the visible text
-  const jsonStart = content.indexOf('{');
-  const jsonEnd = content.lastIndexOf('}');
+  // Safety net: strip leaked JSON
+  const jsonStart = cleanedContent.indexOf('{');
+  const jsonEnd = cleanedContent.lastIndexOf('}');
   if (jsonStart !== -1 && jsonEnd > jsonStart) {
     try {
-      const candidate = JSON.parse(content.slice(jsonStart, jsonEnd + 1));
+      const candidate = JSON.parse(cleanedContent.slice(jsonStart, jsonEnd + 1));
       if (candidate.workouts) {
-        return { type: 'workout', data: { tool: 'createWorkoutPlan', workouts: candidate.workouts }, cleanText: content.replace(content.slice(jsonStart, jsonEnd + 1), '').trim() };
+        return { type: 'workout', data: { tool: 'createWorkoutPlan', workouts: candidate.workouts }, cleanText: cleanedContent.replace(cleanedContent.slice(jsonStart, jsonEnd + 1), '').trim(), options: [], showHeightWeightInput: false };
       }
       if (candidate.meals) {
-        return { type: 'diet', data: { tool: 'createDietPlan', meals: candidate.meals }, cleanText: content.replace(content.slice(jsonStart, jsonEnd + 1), '').trim() };
+        return { type: 'diet', data: { tool: 'createDietPlan', meals: candidate.meals }, cleanText: cleanedContent.replace(cleanedContent.slice(jsonStart, jsonEnd + 1), '').trim(), options: [], showHeightWeightInput: false };
       }
     } catch { /* not JSON */ }
   }
 
-  return { type: null, data: null, cleanText: content.trim() };
+  return { type: null, data: null, cleanText: cleanedContent.trim(), options, showHeightWeightInput };
 }
 
 export async function POST(req: Request) {
@@ -213,7 +269,7 @@ export async function POST(req: Request) {
     const payload = await response.json();
     const content = payload?.choices?.[0]?.message?.content ?? '';
 
-    const { type: planType, data: planData, cleanText } = extractPlanFromResponse(content);
+    const { type: planType, data: planData, cleanText, options, showHeightWeightInput } = extractPlanFromResponse(content);
 
     const stream = new ReadableStream({
       start(ctrl) {
@@ -221,8 +277,8 @@ export async function POST(req: Request) {
           ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'plan', planType, data: planData })}\n\n`));
         } else {
           const text = cleanText || content.trim();
-          if (text) {
-            ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'delta', content: text })}\n\n`));
+          if (text || showHeightWeightInput) {
+            ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'delta', content: text, options, showHeightWeightInput })}\n\n`));
           } else {
             ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', content: 'Empty response from model.' })}\n\n`));
           }
