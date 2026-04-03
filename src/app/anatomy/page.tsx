@@ -130,7 +130,7 @@ export default function AnatomyPage() {
                           { id: "lats-l", muscle: "Lats", top: "30%", left: "43%" },
                           { id: "lats-r", muscle: "Lats", top: "30%", left: "60%" },
                           { id: "triceps-l", muscle: "Triceps", top: "27%", left: "29%" },
-                          { id: "triceps-r", muscle: "Triceps", top: "25%", left: "67%", transform: "translate(-50%, -50%)" },
+                          { id: "triceps-r", muscle: "Triceps", top: "27%", left: "74%", transform: "translate(-50%, -50%)" },
                           { id: "glutes-l", muscle: "Glutes", top: "48%", left: "44%" },
                           { id: "glutes-r", muscle: "Glutes", top: "48%", left: "59%" },
                           { id: "calves-l", muscle: "Calves", top: "78%", left: "42%" },
