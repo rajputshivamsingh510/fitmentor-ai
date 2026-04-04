@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { useSubscription } from "@/hooks/useSubscription";
 
 const PLANS = [
   {
@@ -119,6 +120,7 @@ export const PricingSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, amount: 0.2 });
   const router = useRouter();
+  const { plan: activePlan, isPro, isElite } = useSubscription();
 
   const loadRazorpayScript = () =>
     new Promise<boolean>((resolve) => {
@@ -148,20 +150,16 @@ export const PricingSection = () => {
       return;
     }
 
-    // TODO: Check if user already has this plan active
-    // If yes, show feature modal instead of payment
-    // Example (uncomment and adapt to your subscription check logic):
-    // const { data: subscription } = await supabase
-    //   .from("subscriptions")
-    //   .select("plan")
-    //   .eq("user_id", user.id)
-    //   .eq("status", "active")
-    //   .single();
-    // if (subscription?.plan === planKey) {
-    //   setModalIsActive(true);
-    //   setModalPlan(plan);
-    //   return;
-    // }
+    // Check if user already has this plan active — show feature modal instead
+    const tierOfPlan = planKey.includes('elite') ? 'elite' : 'pro';
+    const userHasThisPlan =
+      (tierOfPlan === 'elite' && isElite) ||
+      (tierOfPlan === 'pro' && isPro && activePlan === 'pro');
+    if (userHasThisPlan) {
+      setModalIsActive(true);
+      setModalPlan(plan);
+      return;
+    }
 
     setLoadingPlan(planKey);
 
@@ -278,6 +276,20 @@ export const PricingSection = () => {
                     Most Optimal
                   </div>
                 )}
+                {/* Active plan badge */}
+                {(() => {
+                  const tier = planKey ? (planKey.includes('elite') ? 'elite' : 'pro') : 'free';
+                  const isCurrentPlan =
+                    (tier === 'free' && activePlan === 'free') ||
+                    (tier === 'pro' && activePlan === 'pro') ||
+                    (tier === 'elite' && activePlan === 'elite');
+                  return isCurrentPlan ? (
+                    <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-[10px] font-bold uppercase tracking-widest">
+                      <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                      Active
+                    </div>
+                  ) : null;
+                })()}
 
                 <h3 className="text-2xl font-black uppercase tracking-tight text-white mb-2">{plan.name}</h3>
                 <p className="text-slate-400 text-sm mb-6">{plan.desc}</p>
@@ -316,9 +328,13 @@ export const PricingSection = () => {
                     </>
                   ) : isFree ? (
                     "View Features"
-                  ) : (
-                    "Initialize Plan"
-                  )}
+                  ) : (() => {
+                    const tier = planKey ? (planKey.includes('elite') ? 'elite' : 'pro') : 'free';
+                    const isCurrentPlan =
+                      (tier === 'pro' && activePlan === 'pro') ||
+                      (tier === 'elite' && activePlan === 'elite');
+                    return isCurrentPlan ? "View Your Plan" : "Initialize Plan";
+                  })()}
                 </button>
 
                 <div className="flex-1">

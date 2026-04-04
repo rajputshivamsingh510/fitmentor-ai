@@ -64,6 +64,7 @@ If HOME:
 Once ALL 10 answers are collected, generate the plan immediately. Use today's date as the start date.
 
 IMPORTANT PLAN GENERATION RULES:
+- Generate a FULL 4-WEEK periodized plan. Repeat the split for 4 weeks with progressive overload each week.
 - Match exercise count exactly to what the user requested
 - Match the training style (calisthenics = bodyweight progressions; powerlifting = heavy compounds 1-5 reps; hypertrophy = 8-15 reps; HIIT = circuits)
 - Match the split exactly
@@ -71,11 +72,20 @@ IMPORTANT PLAN GENERATION RULES:
 - Advanced: more exercises, periodisation notes, heavier intensity cues
 - Include helpful notes per exercise (tempo, cues, rest time)
 - Assign proper focus area names per day (e.g. "Push Day — Chest & Triceps")
+- Skip rest days — only include training days in the JSON
+
+PERIODIZATION RULES (apply across 4 weeks):
+- Week 1 (Foundation): Base sets and reps. Notes say "Focus on form, controlled tempo."
+- Week 2 (Progression): Add 1-2 reps to each exercise. Notes say "Add 1-2 reps vs Week 1, same weight."
+- Week 3 (Overload): Add 1 set to each exercise vs Week 1. Notes say "Add 1 set vs Week 1, push intensity."
+- Week 4 (Peak/Deload): Return to Week 1 reps/sets but notes say "Deload — reduce weight 20%, focus on quality."
+- Dates must be sequential starting from today, skipping rest days based on the split.
+- Add "[W1]", "[W2]", "[W3]", "[W4]" prefix to each focusArea so the UI can group by week. Example: "[W1] Push Day — Chest & Triceps"
 
 Output ONLY this block with no extra text before or after it:
 
 <WORKOUT_PLAN>
-{"workouts":[{"date":"YYYY-MM-DD","focusArea":"string","exercises":[{"name":"string","sets":3,"reps":"8-12","notes":"string"}]}]}
+{"workouts":[{"date":"YYYY-MM-DD","focusArea":"[W1] string","exercises":[{"name":"string","sets":3,"reps":"8-12","notes":"string"}]}]}
 </WORKOUT_PLAN>
 
 ==========================

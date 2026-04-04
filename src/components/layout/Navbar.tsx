@@ -50,6 +50,7 @@ export const Navbar = () => {
         { name: "Home", href: "/" },
         { name: "AI Coach", href: "/coach" },
         { name: "Anatomy", href: "/anatomy" },
+        { name: "Exercises", href: "/exercises" },
         { name: "Profile", href: "/profile" },
       ]
     : [
@@ -57,6 +58,7 @@ export const Navbar = () => {
         { name: "Features", href: "/#features" },
         { name: "AI Coach", href: "/coach" },
         { name: "Anatomy", href: "/anatomy" },
+        { name: "Exercises", href: "/exercises" },
         { name: "Pricing", href: "/#pricing" },
       ];
 

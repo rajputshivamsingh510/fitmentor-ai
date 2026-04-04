@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Activity, Dumbbell, Cpu, Sparkles, Loader2, AlertCircle } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
+import { PlanGate } from "@/components/PlanGate";
 import ParticleBackground from "@/components/animations/ParticleBackground";
 
 type Exercise = {
@@ -101,18 +102,26 @@ export default function AnatomyPage() {
               </div>
             </div>
 
-            <div className="relative overflow-visible flex justify-center">
-              <div className="relative w-full max-w-[360px]">
-                <img
-                  src={view === "front" ? "/anatomy-front.png" : "/anatomy-back.png"}
-                  alt={`${view} muscle map`}
-                  className="w-full h-auto drop-shadow-[0_15px_30px_rgba(0,0,0,0.55)]"
-                  style={{ background: "transparent" }}
-                />
+            {/* 3D flip container */}
+            <div className="relative overflow-visible flex justify-center" style={{ perspective: "1200px" }}>
+              <div
+                className="relative w-full max-w-[360px] transition-transform duration-700"
+                style={{
+                  transformStyle: "preserve-3d",
+                  transform: view === "front" ? "rotateY(0deg)" : "rotateY(180deg)",
+                }}
+              >
+                {/* FRONT face */}
+                <div style={{ backfaceVisibility: "hidden" }}>
+                  <img
+                    src="/anatomy-front.png"
+                    alt="front muscle map"
+                    className="w-full h-auto drop-shadow-[0_15px_30px_rgba(0,0,0,0.55)]"
+                    style={{ background: "transparent" }}
+                  />
                 <div className="absolute inset-0">
                   {(
-                    view === "front"
-                      ? [
+                    [
                           { id: "shoulders-l", muscle: "Shoulders", top: "16%", left: "32%" },
                           { id: "shoulders-r", muscle: "Shoulders", top: "16%", left: "71%" },
                           { id: "chest-l", muscle: "Chest", top: "22%", left: "43%" },
@@ -124,17 +133,6 @@ export default function AnatomyPage() {
                           { id: "abs", muscle: "Abs", top: "35%", left: "52%" },
                           { id: "legs-l", muscle: "Legs", top: "57%", left: "41%" },
                           { id: "legs-r", muscle: "Legs", top: "57%", left: "61%" },
-                        ]
-                      : [
-                          { id: "back", muscle: "Back", top: "19%", left: "51%" },
-                          { id: "lats-l", muscle: "Lats", top: "30%", left: "43%" },
-                          { id: "lats-r", muscle: "Lats", top: "30%", left: "60%" },
-                          { id: "triceps-l", muscle: "Triceps", top: "27%", left: "29%" },
-                          { id: "triceps-r", muscle: "Triceps", top: "27%", left: "74%", transform: "translate(-50%, -50%)" },
-                          { id: "glutes-l", muscle: "Glutes", top: "48%", left: "44%" },
-                          { id: "glutes-r", muscle: "Glutes", top: "48%", left: "59%" },
-                          { id: "calves-l", muscle: "Calves", top: "78%", left: "42%" },
-                          { id: "calves-r", muscle: "Calves", top: "78%", left: "61%" },
                         ]
                   ).map(({ id, muscle, top, left, transform }) => {
                     const active = muscle === selectedMuscle;
@@ -154,6 +152,49 @@ export default function AnatomyPage() {
                     );
                   })}
                 </div>
+                </div>{/* end front face */}
+
+                {/* BACK face */}
+                <div
+                  className="absolute inset-0"
+                  style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+                >
+                  <img
+                    src="/anatomy-back.png"
+                    alt="back muscle map"
+                    className="w-full h-auto drop-shadow-[0_15px_30px_rgba(0,0,0,0.55)]"
+                    style={{ background: "transparent" }}
+                  />
+                  <div className="absolute inset-0">
+                    {[
+                      { id: "back", muscle: "Back", top: "19%", left: "51%" },
+                      { id: "lats-l", muscle: "Lats", top: "30%", left: "43%" },
+                      { id: "lats-r", muscle: "Lats", top: "30%", left: "60%" },
+                      { id: "triceps-l", muscle: "Triceps", top: "27%", left: "29%" },
+                      { id: "triceps-r", muscle: "Triceps", top: "27%", left: "74%", transform: "translate(-50%, -50%)" },
+                      { id: "glutes-l", muscle: "Glutes", top: "48%", left: "44%" },
+                      { id: "glutes-r", muscle: "Glutes", top: "48%", left: "59%" },
+                      { id: "calves-l", muscle: "Calves", top: "78%", left: "42%" },
+                      { id: "calves-r", muscle: "Calves", top: "78%", left: "61%" },
+                    ].map(({ id, muscle, top, left, transform }) => {
+                      const active = muscle === selectedMuscle;
+                      return (
+                        <button
+                          key={id}
+                          onClick={() => setSelectedMuscle(muscle as typeof MUSCLE_GROUPS[number])}
+                          style={{ top, left, transform: transform ?? "translate(-50%, -50%)" }}
+                          className={`absolute px-2 py-[6px] rounded-full text-[10px] font-semibold border transition-all backdrop-blur-sm ${
+                            active
+                              ? "bg-cyan-500 text-slate-950 border-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.35)]"
+                              : "bg-slate-900/70 border-white/10 text-slate-200 hover:bg-white/15"
+                          }`}
+                        >
+                          {muscle}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>{/* end back face */}
               </div>
             </div>
 
@@ -193,6 +234,7 @@ export default function AnatomyPage() {
             </p>
           </div>
 
+          <PlanGate required="pro" featureName="AI Exercise Intelligence">
           <div className="glass-panel rounded-2xl border border-white/10 p-4 md:p-5 space-y-4 min-h-[320px]">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
@@ -243,6 +285,7 @@ export default function AnatomyPage() {
               )}
             </AnimatePresence>
           </div>
+          </PlanGate>
         </div>
       </div>
     </main>

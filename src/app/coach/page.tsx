@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { useUserStore } from "@/store/userStore";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
+import { useSubscription } from "@/hooks/useSubscription";
 import ParticleBackground from "@/components/animations/ParticleBackground";
 
 interface WorkoutExercise { name: string; sets: number; reps: string; notes?: string; }
@@ -283,6 +284,8 @@ export default function CoachPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { saveWorkoutPlan, saveDietPlan } = useUserStore();
+  const { isPro } = useSubscription();
+  const router = useRouter();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -290,6 +293,17 @@ export default function CoachPage() {
 
   useEffect(() => {
     return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
+  }, []);
+
+  // Auto-send prompt if user came from Programs section
+  useEffect(() => {
+    const initPrompt = sessionStorage.getItem("fitmentor_init_prompt");
+    if (initPrompt) {
+      sessionStorage.removeItem("fitmentor_init_prompt");
+      // Small delay so the coach page is fully mounted
+      setTimeout(() => sendMessage(initPrompt), 400);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startCountdown = (seconds: number) => {
@@ -494,14 +508,25 @@ export default function CoachPage() {
               {QUICK_PROMPTS.map(({ icon: Icon, label, msg }) => (
                 <button
                   key={label}
-                  onClick={() => sendMessage(msg)}
+                  onClick={() => {
+                    if (label === "Create a diet plan" && !isPro) {
+                      router.push("/#pricing");
+                      return;
+                    }
+                    sendMessage(msg);
+                  }}
                   disabled={isInputDisabled}
                   className="group p-4 rounded-2xl glass-panel hover:bg-slate-800/50 hover:box-glow transition-all duration-300 text-left flex items-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0 group-hover:bg-cyan-500/20 transition-colors">
                     <Icon className="w-4 h-4 text-cyan-400" />
                   </div>
-                  <span className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors leading-tight">{label}</span>
+                  <span className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors leading-tight">
+                    {label}
+                    {label === "Create a diet plan" && !isPro && (
+                      <span className="ml-1.5 text-[10px] font-bold text-cyan-400 uppercase tracking-wider border border-cyan-500/30 rounded px-1 py-0.5">Pro</span>
+                    )}
+                  </span>
                   <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 ml-auto shrink-0 transition-colors" />
                 </button>
               ))}

@@ -2,7 +2,8 @@
 
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
-import { ArrowRight, Clock, Activity, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Clock, Zap } from "lucide-react";
 
 const programs = [
   {
@@ -10,34 +11,44 @@ const programs = [
     level: "Elite",
     duration: "12 Weeks",
     image: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=2670&auto=format&fit=crop",
-    desc: "Periodized volume progressions focused on maximal muscle fiber recruitment."
+    desc: "Periodized volume progressions focused on maximal muscle fiber recruitment.",
+    prompt: "I want to start the Advanced Hypertrophy program. My goal is to build maximum muscle mass using periodized volume progressions."
   },
   {
     title: "Athletic Performance",
     level: "Pro",
     duration: "8 Weeks",
     image: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2670&auto=format&fit=crop",
-    desc: "Explosive power development and neuromuscular efficiency."
+    desc: "Explosive power development and neuromuscular efficiency.",
+    prompt: "I want to start the Athletic Performance program focused on explosive power development and neuromuscular efficiency."
   },
   {
     title: "Strength Foundations",
     level: "Beginner",
     duration: "6 Weeks",
     image: "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2669&auto=format&fit=crop",
-    desc: "Master the compound movement patterns with intelligent scaling."
+    desc: "Master the compound movement patterns with intelligent scaling.",
+    prompt: "I want to start the Strength Foundations program. I am a beginner and want to master compound movements like squat, bench, and deadlift."
   },
   {
     title: "Metabolic Conditioning",
     level: "Intermediate",
     duration: "4 Weeks",
     image: "https://images.unsplash.com/photo-1599058917212-d750089bc07e?q=80&w=2669&auto=format&fit=crop",
-    desc: "High-intensity intervals designed to maximize post-exercise oxygen consumption."
+    desc: "High-intensity intervals designed to maximize post-exercise oxygen consumption.",
+    prompt: "I want to start the Metabolic Conditioning program using high-intensity intervals to maximize fat burn and conditioning."
   }
 ];
 
 export const ProgramsSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, amount: 0.1 });
+  const router = useRouter();
+
+  const handleInitialize = (prompt: string) => {
+    sessionStorage.setItem("fitmentor_init_prompt", prompt);
+    router.push("/coach");
+  };
 
   return (
     <section className="py-32 relative bg-[#020617]" id="programs">
@@ -103,7 +114,9 @@ export const ProgramsSection = () => {
                   {program.desc}
                 </p>
                 
-                <button className="mt-4 w-fit px-6 py-2.5 rounded-full bg-transparent border-2 border-cyan-500 text-cyan-400 font-bold uppercase tracking-wider text-xs hover:bg-cyan-500 hover:text-slate-950 transition-colors duration-300 transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 delay-100 ease-out">
+                <button
+                  onClick={() => handleInitialize(program.prompt)}
+                  className="mt-4 w-fit px-6 py-2.5 rounded-full bg-transparent border-2 border-cyan-500 text-cyan-400 font-bold uppercase tracking-wider text-xs hover:bg-cyan-500 hover:text-slate-950 transition-colors duration-300 transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 delay-100 ease-out">
                   Initialize Program
                 </button>
               </div>
