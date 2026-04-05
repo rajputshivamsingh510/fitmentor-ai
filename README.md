@@ -17,8 +17,7 @@
 
 <br/>
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/rajputshivamsingh510/fitmentor-ai)
-&nbsp;&nbsp;
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Site-black?style=for-the-badge&logo=vercel)](https://fitmentor-6tdqqvijx-rajputshivamsingh510s-projects.vercel.app/)
 [🐛 Report Bug](https://github.com/rajputshivamsingh510/fitmentor-ai/issues)
 &nbsp;&nbsp;
 [✨ Request Feature](https://github.com/rajputshivamsingh510/fitmentor-ai/issues)
