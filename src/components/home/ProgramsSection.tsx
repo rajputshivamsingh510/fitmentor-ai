@@ -61,7 +61,7 @@ export const ProgramsSection = () => {
             className="max-w-2xl"
           >
             <span className="text-cyan-400 font-bold tracking-widest uppercase text-sm mb-4 block">Protocols</span>
-            <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight text-white mb-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-white mb-4 sm:mb-6">
               Neural <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500">Pathways</span>
             </h2>
             <p className="text-slate-400">
@@ -86,7 +86,7 @@ export const ProgramsSection = () => {
               initial={{ opacity: 0, y: 40 }}
               animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
               transition={{ duration: 0.6, delay: 0.1 * idx }}
-              className="group relative h-[450px] rounded-[2rem] overflow-hidden flex flex-col justify-end p-8 border border-white/5 hover:border-cyan-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(6,182,212,0.3)] bg-slate-900 cursor-pointer"
+              className="group relative h-[320px] sm:h-[400px] md:h-[450px] rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden flex flex-col justify-end p-5 sm:p-8 border border-white/5 hover:border-cyan-500/50 transition-all duration-500 hover:shadow-[0_0_40px_rgba(6,182,212,0.3)] bg-slate-900 cursor-pointer"
             >
               {/* Background Image Setup */}
               <div 

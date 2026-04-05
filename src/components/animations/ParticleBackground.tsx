@@ -68,7 +68,7 @@ export const ParticleBackground = () => {
         density: {
           enable: true,
         },
-        value: 50,
+        value: typeof window !== 'undefined' && window.innerWidth < 768 ? 20 : 50,
       },
       opacity: {
         value: 0.3,
@@ -89,7 +89,7 @@ export const ParticleBackground = () => {
         id="tsparticles"
         particlesLoaded={particlesLoaded}
         options={options}
-        className="absolute inset-0 -z-10 h-full w-full pointer-events-none mix-blend-screen"
+        className="absolute inset-0 -z-10 h-full w-full pointer-events-none "
       />
     );
   }

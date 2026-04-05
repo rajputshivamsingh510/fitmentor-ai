@@ -497,7 +497,7 @@ export default function CoachPage() {
               <Activity className="w-10 h-10 text-cyan-400" />
             </div>
             <div>
-              <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase text-white">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter uppercase text-white">
                 FitMentor <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500">AI</span>
               </h1>
               <p className="text-slate-400 mt-3 text-base max-w-md mx-auto leading-relaxed">

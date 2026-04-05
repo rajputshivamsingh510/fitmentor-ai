@@ -52,11 +52,11 @@ export const TestimonialsSection = () => {
           {[...testimonials, ...testimonials].map((t, idx) => (
             <div 
               key={idx}
-              className="w-[450px] flex-shrink-0 glass-panel p-8 rounded-3xl relative"
+              className="w-[85vw] sm:w-[400px] md:w-[440px] flex-shrink-0 glass-panel p-6 sm:p-8 rounded-3xl relative"
             >
               <Quote className="absolute top-6 right-6 w-8 h-8 text-cyan-900/50" />
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-cyan-500/30">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-cyan-500/30">
                   <img src={t.img} alt={t.name} className="w-full h-full object-cover" />
                 </div>
                 <div>

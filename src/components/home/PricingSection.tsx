@@ -233,7 +233,7 @@ export const PricingSection = () => {
       <div className="max-w-7xl mx-auto px-6 relative z-10" ref={ref}>
         <div className="text-center mb-16">
           <span className="text-cyan-400 font-bold tracking-widest uppercase text-sm mb-4 block">Upgrade Matrix</span>
-          <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight text-white mb-6">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-white mb-4 sm:mb-6">
             Neural <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500">Subscription</span>
           </h2>
 
@@ -296,11 +296,11 @@ export const PricingSection = () => {
 
                 <div className="mb-8 flex items-baseline gap-2">
                   {isFree ? (
-                    <span className="text-5xl font-black text-white">Free</span>
+                    <span className="text-4xl sm:text-5xl font-black text-white">Free</span>
                   ) : (
                     <>
                       <span className="text-2xl font-bold text-white">₹</span>
-                      <span className="text-5xl font-black text-white">{price.toLocaleString()}</span>
+                      <span className="text-4xl sm:text-5xl font-black text-white">{price.toLocaleString()}</span>
                       <span className="text-slate-500 uppercase font-bold text-xs tracking-widest">
                         / {annual ? "year" : "month"}
                       </span>

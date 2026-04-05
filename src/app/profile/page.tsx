@@ -262,31 +262,32 @@ export default function ProfilePage() {
   ] as const;
 
   return (
-    <main className="relative min-h-screen bg-slate-950 overflow-hidden flex flex-col pt-24 pb-16">
+    <main className="relative min-h-screen bg-slate-950 flex flex-col pt-20 pb-10">
       <ParticleBackground />
       <Navbar />
 
-      <div className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-8 z-10 flex flex-col gap-8">
+      {/* ── Full-width content area ── */}
+      <div className="flex-1 w-full px-4 sm:px-8 lg:px-12 z-10 flex flex-col gap-5 py-6">
 
         {/* ── Header ── */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800/60">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-12 h-12 shrink-0 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_24px_rgba(6,182,212,0.4)]">
               <User className="w-6 h-6 text-white" />
             </div>
-            <div>
-              <p className="text-slate-500 text-xs font-medium tracking-widest uppercase mb-0.5">
+            <div className="min-w-0">
+              <p className="text-slate-500 text-[11px] font-semibold tracking-widest uppercase truncate max-w-[220px] sm:max-w-md mb-0.5">
                 {authLoading ? '...' : user?.email ?? 'Guest'}
               </p>
-              <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">
+              <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white leading-none">
                 Fitness <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Dashboard</span>
               </h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Link href="/coach"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-500 text-slate-950 text-sm font-bold hover:bg-cyan-400 transition-colors shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 text-slate-950 text-sm font-bold hover:bg-cyan-400 transition-colors shadow-[0_0_15px_rgba(6,182,212,0.3)]">
               <MessageCircle className="w-4 h-4" /> AI Coach
             </Link>
             {(workoutPlan.length > 0 || dietPlan.length > 0) && (
@@ -308,7 +309,7 @@ export default function ProfilePage() {
           <>
             {/* ── Stats Row ── */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
-              className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              className="grid grid-cols-2 xl:grid-cols-4 gap-3 w-full">
               {[
                 { label: 'Workouts Done',  value: completedCount || '—',                                    icon: CheckCircle2, accent: '#22c55e', glow: 'rgba(34,197,94,0.15)'   },
                 { label: 'Daily Calories', value: totalCalories > 0 ? `${totalCalories}` : '—',             icon: Flame,        accent: '#f97316', glow: 'rgba(249,115,22,0.15)'  },
@@ -318,13 +319,13 @@ export default function ProfilePage() {
                 const Icon = stat.icon;
                 return (
                   <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * i }}
-                    className="relative bg-slate-900/60 border border-slate-800/60 rounded-2xl p-5 overflow-hidden group hover:border-slate-700/60 transition-colors">
+                    className="relative bg-slate-900/60 border border-slate-800/60 rounded-2xl p-5 sm:p-6 overflow-hidden group hover:border-cyan-500/20 hover:border-slate-700/60 transition-all min-h-[100px]">
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
                       style={{ background: `radial-gradient(circle at top left, ${stat.glow}, transparent 70%)` }} />
                     <div className="relative">
-                      <Icon className="w-5 h-5 mb-3" style={{ color: stat.accent }} />
-                      <div className="text-2xl font-black text-white tracking-tight">{stat.value}</div>
-                      <div className="text-[11px] text-slate-500 uppercase tracking-widest font-medium mt-1">{stat.label}</div>
+                      <Icon className="w-5 h-5 mb-2" style={{ color: stat.accent }} />
+                      <div className="text-xl sm:text-2xl font-black text-white tracking-tight leading-none">{stat.value}</div>
+                      <div className="text-[10px] text-slate-500 uppercase tracking-widest font-medium mt-1 leading-tight">{stat.label}</div>
                     </div>
                   </motion.div>
                 );
@@ -332,30 +333,32 @@ export default function ProfilePage() {
             </motion.div>
 
             {/* ── Tab Navigation ── */}
-            <div className="flex gap-1.5 p-1 bg-slate-900/60 border border-slate-800/60 rounded-2xl w-fit">
-              {tabs.map(tab => {
-                const Icon = tab.icon;
-                return (
-                  <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all
-                      ${activeTab === tab.id
-                        ? 'bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
-                        : 'text-slate-500 hover:text-slate-300'}`}>
-                    <Icon className="w-4 h-4" />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                  </button>
-                );
-              })}
+            <div className="overflow-x-auto -mx-1 px-1 pb-1 scrollbar-none">
+              <div className="flex gap-1.5 p-1 bg-slate-900/60 border border-slate-800/60 rounded-2xl w-max min-w-full sm:w-auto sm:min-w-0">
+                {tabs.map(tab => {
+                  const Icon = tab.icon;
+                  return (
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap
+                        ${activeTab === tab.id
+                          ? 'bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
+                          : 'text-slate-500 hover:text-slate-300'}`}>
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span className="text-xs sm:text-sm">{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* ══════════════════════════════════════════════════════
                 OVERVIEW TAB
             ══════════════════════════════════════════════════════ */}
             {activeTab === 'overview' && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 w-full">
 
                 {/* Calendar + Analytics side by side on large screens */}
-                <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6">
+                <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] 2xl:grid-cols-[1fr_480px] gap-5">
 
                   {/* Calendar */}
                   <div className="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-6">
@@ -529,7 +532,7 @@ export default function ProfilePage() {
             ══════════════════════════════════════════════════════ */}
             {activeTab === 'workout' && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-6 space-y-5">
+                className="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-5 sm:p-6 space-y-5 w-full">
 
                 {/* Header */}
                 <div className="flex items-center justify-between pb-4 border-b border-slate-800/60">
@@ -567,7 +570,7 @@ export default function ProfilePage() {
                 )}
 
                 {visibleWorkouts.length > 0 ? (
-                  <div className="overflow-x-auto pb-2">
+                  <div className="overflow-x-auto pb-3 -mx-1 px-1" style={{ WebkitOverflowScrolling: 'touch', scrollSnapType: 'x mandatory' }}>
                     <div className="flex gap-3" style={{ minWidth: `${visibleWorkouts.length * 272}px` }}>
                       {visibleWorkouts.map((w, i) => {
                         const dateKey = w.date.substring(0, 10);
@@ -575,7 +578,7 @@ export default function ProfilePage() {
                         const displayFocusArea = w.focusArea.replace(/^\[W[1-4]\]\s*/, '');
                         const dayName = (() => { try { return format(new Date(dateKey + 'T00:00:00'), 'EEEE'); } catch { return w.date; } })();
                         return (
-                          <div key={i} className={`flex-shrink-0 w-64 rounded-2xl border p-4 flex flex-col gap-3 transition-all
+                          <div key={i} style={{ scrollSnapAlign: 'start' }} className={`flex-shrink-0 w-64 rounded-2xl border p-4 flex flex-col gap-3 transition-all
                             ${status === 'completed' ? 'bg-emerald-500/5 border-emerald-500/25'
                               : status === 'skipped' ? 'bg-amber-500/5 border-amber-500/25'
                               : status === 'missed'  ? 'bg-red-500/5 border-red-500/25'
@@ -642,7 +645,7 @@ export default function ProfilePage() {
             ══════════════════════════════════════════════════════ */}
             {activeTab === 'diet' && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-6 space-y-5">
+                className="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-5 sm:p-6 space-y-5 w-full">
 
                 <div className="flex items-center justify-between pb-4 border-b border-slate-800/60">
                   <div className="flex items-center gap-3">
@@ -664,7 +667,9 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="space-y-4">
-                  {dietPlan.length > 0 ? dietPlan.map((meal, i) => (
+                  {dietPlan.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {dietPlan.map((meal, i) => (
                     <div key={i} className="group bg-slate-800/30 rounded-2xl overflow-hidden border border-slate-700/30 hover:border-slate-600/50 transition-all duration-300">
                       <div className="h-36 w-full relative overflow-hidden bg-slate-900">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -704,7 +709,9 @@ export default function ProfilePage() {
                         </div>
                       </div>
                     </div>
-                  )) : (
+                    ))}
+                  </div>
+                ) : (
                     <div className="flex flex-col items-center justify-center py-20 gap-4">
                       <div className="w-14 h-14 rounded-2xl bg-slate-800/60 flex items-center justify-center">
                         <Utensils className="w-7 h-7 text-slate-600" />
@@ -778,7 +785,7 @@ export default function ProfilePage() {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-1.5 w-full">
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5 w-full">
                       {Array.from({ length: waterGoal }).map((_, i) => (
                         <div key={i}
                           onClick={() => { const delta = (i + 1) - todayWater; if (delta !== 0) updateWater(delta); }}

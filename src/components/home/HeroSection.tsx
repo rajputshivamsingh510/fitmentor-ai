@@ -7,8 +7,8 @@ import Link from "next/link";
 export const HeroSection = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden" id="home">
-      {/* Background ambient lighting */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+      {/* Background ambient lighting - reduced blur for mobile GPU */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] md:w-[600px] md:h-[600px] bg-cyan-500/10 rounded-full blur-[80px] md:blur-[120px] pointer-events-none"></div>
       
       <div className="max-w-7xl mx-auto px-6 relative z-10 w-full flex flex-col items-center text-center">
         
@@ -31,7 +31,7 @@ export const HeroSection = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-          className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter uppercase text-white mb-6 leading-[1.05]"
+          className="text-4xl md:text-7xl lg:text-8xl font-black tracking-tighter uppercase text-white mb-6 leading-[1.05]"
         >
           Futuristic <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-cyan-400 to-blue-500">Coaching</span><br />
           <span className="opacity-90">With Cinematic Energy</span>
@@ -77,7 +77,7 @@ export const HeroSection = () => {
       </div>
 
       {/* Decorative Elements - Glowing Athlete Silhouette Placeholder */}
-      <div className="absolute bottom-0 right-0 w-1/3 h-[70vh] opacity-20 bg-[url('https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=2070&auto=format&fit=crop')] bg-contain bg-right-bottom bg-no-repeat pointer-events-none mix-blend-screen" style={{ WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0))' }}></div>
+      <div className="absolute bottom-0 right-0 w-1/3 h-[70vh] opacity-20 bg-[url('https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=2070&auto=format&fit=crop')] bg-contain bg-right-bottom bg-no-repeat pointer-events-none hidden md:block" style={{ WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0))' }}></div>
     </section>
   );
 };

@@ -162,7 +162,7 @@ export default function ExerciseLibraryPage() {
           </span>
           <div className="flex items-end justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight text-white">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-white">
                 Exercise{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500">
                   Library

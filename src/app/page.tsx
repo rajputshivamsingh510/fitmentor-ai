@@ -11,7 +11,7 @@ import { ParticleBackground } from "@/components/animations/ParticleBackground";
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen bg-transparent overflow-hidden">
+    <main className="relative min-h-screen bg-transparent overflow-x-hidden">
       <ParticleBackground />
       <Navbar />
       

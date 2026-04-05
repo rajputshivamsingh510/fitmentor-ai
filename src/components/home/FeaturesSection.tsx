@@ -52,7 +52,7 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { type: "spring" as const, stiffness: 100 as number, damping: 15 as number, stiffness: 100, damping: 15 }
+    transition: { type: "spring" as const, stiffness: 100, damping: 15 }
   }
 };
 
@@ -63,7 +63,7 @@ export const FeaturesSection = () => {
   return (
     <section className="py-32 relative bg-slate-950 overflow-hidden" id="features">
       {/* Decorative gradient orb */}
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-900/10 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-900/10 rounded-full blur-[60px] pointer-events-none"></div>
 
       <div className="max-w-7xl mx-auto px-6 relative z-10" ref={ref}>
         <motion.div 
@@ -73,7 +73,7 @@ export const FeaturesSection = () => {
           className="text-center mb-20"
         >
           <span className="text-cyan-400 font-bold tracking-widest uppercase text-sm mb-4 block">Intelligence Core</span>
-          <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight text-white mb-6">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-white mb-4 sm:mb-6">
             Neural Adaptation <span className="text-slate-500">Engine</span>
           </h2>
           <p className="text-slate-400 max-w-2xl mx-auto">
